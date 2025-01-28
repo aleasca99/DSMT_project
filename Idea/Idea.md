@@ -1,167 +1,142 @@
 ## **WHENLY**
+
 ### **A Distributed Event Scheduling Application**
 
 #### **Architecture Overview**
 
 1. **WebApp Node**
 
-   - A web-based frontend implemented with **JSP** hosted on an **Apache Tomcat** server.
+   - A graphical user interface hosted on **Apache Tomcat**.
+   - Primary Responsibilities:
+     - Provides the user interface for interaction with the application.
+     - Forwards all user requests to the **Backend Node** for processing.
+
+2. **Backend Node**
+
+   - Implements the core application logic using **Java**.
+   - Key Responsibilities:
+     - Facilitates user authentication processes, including sign-in and sign-up.
+     - Manages event creation and constraint submissions.
+     - Persists event-related metadata in the **Database Node**.
+     - Distributes tasks and constraints to the **Event Server Nodes** in a circular manner to ensure uniform load balancing across all nodes.
+
+3. **Database Node**
+
+   - A centralized storage system implemented using **MySQL**.
+   - Key Functions:
+     - Stores user credentials.
+     - Maintains metadata and constraints for all events, ensuring fault tolerance by associating constraints with the ID of the Event Server Node to which the constraints were sent.
+     - Archives the final schedules of completed events.
+
+4. **Event Server Nodes** (Distributed Erlang Nodes)
+
+   - Nodes implemented in **Erlang** using **Mnesia DB** for fault-tolerant, distributed local storage.
    - Responsibilities:
-     - Handles user interaction for event creation and constraint submission.
-     - Authenticates users by interacting with the database node.
-     - Distributes event-related requests in a **round-robin manner** to the **event server nodes** for load balancing.
-
-2. **Database Node**
-
-   - A **MySQL database** for centralized storage of:
-     - **User credentials:** (username, password).
-     - **Constraints:** User-submitted constraints and the corresponding **event server** node responsible for that event.
-     - **Completed events:** Stores final solutions for past events, allowing for constraint and log cleanup.
-
-3. **Event Server Nodes** (Minimum 2, scalable for load balancing)
-
-   - Responsibilities:
-     - **Distributed constraint management:** Each node stores constraints for the events it handles in a **Redis database**.
-     - **Partial solution calculation:** Maintains the current intersection of constraints for the events it handles.
-     - **Distributed coordination:** Executes the distributed algorithm to compute the final schedule when the **deadline** expires.
+     - **Distributed Constraint Management:** Maintains partial solutions for events based on received constraints.
+     - **Incremental Solution Computation:** Updates partial solutions dynamically with each new constraint received.
+     - **Distributed Coordination:** The server responsible for an event's deadline (i.e. the one that received the event creation request) initiates and orchestrates a distributed algorithm to compute the final schedule, collaborating with all the other **Event Server Nodes**.
 
 ---
 
-#### **Key Workflow**
+### **Key Workflow**
 
-1. **Event Creation (Handled by WebApp Node)**
+1. **User Authentication and Event Management**
 
-   - The **administrator** creates an event by submitting:
-     - Event details (e.g., description, participants).
-     - Deadline for scheduling.
-     - Their own constraints.
-   - The WebApp Node:
-     - Authenticates the user via the **database node**.
-     - Assigns the event to one of the **event server nodes** using a **round-robin load balancing strategy**.
-     - Sends the event and constraints to the chosen event server.
+   - Users interact with the **WebApp Node**, which forwards all requests to the **Backend Node**.
+   - The **Backend Node**:
+     - Authenticates users by querying the **Database Node**.
+     - Facilitates event creation and the submission of scheduling constraints.
+     - Persists event metadata and constraints in the **Database Node**.
+     - Assigns events and their associated constraints to the **Event Server Nodes** in a circular distribution pattern.
 
-2. **Constraint Submission (Handled by Event Server Nodes)**
+2. **Constraint Submission**
 
-   - Users submit constraints via the WebApp.
-   - The WebApp redirects the request to one of the **event server nodes** using a **round-robin load balancing strategy**.
-   - The receiving **event server**:
-     - Stores the new constraints locally in its **Redis database**.
-     - Updates the **partial solution** by intersecting the new constraints with the current solution (if any) for the event.
+   - Users submit constraints via the **WebApp Node**.
+   - The **Backend Node** forwards the constraints to the appropriate **Event Server Node** based on the circular distribution policy.
+   - The receiving **Event Server Node**:
+     - Computes or updates the partial solution for the event.
+     - Stores the updated partial solution in its **Mnesia DB** for fault tolerance and consistency.
 
-3. **Distributed Solution Computation**
+3. **Partial Solution Management**
 
-   - When the **deadline** expires:
-     - The **event server** that accepted the administrator's first request (and therefore stored the event deadline) initiates the distributed algorithm. This occurs only if its local queue is empty; otherwise, it waits until the queue clears or a timeout occurs.
-     - It communicates with all other event servers to exchange the partial solutions they have stored for the event. Together, they compute a final solution if one exists; otherwise, they agree there is no solution.
+   - Each **Event Server Node** is responsible for:
+     - Storing and maintaining partial solutions for all events for which it received either the creation request with a deadline or a new constraint.
+     - Incrementally updating partial solutions as new constraints are received.
+     - Ensuring fault-tolerant storage of these solutions using **Mnesia DB**.
 
-4. **Failure Recovery**
+4. **Final Solution Computation**
 
-   - If an **event server** goes down:
-     - The **WebApp node** retrieves constraints from the **MySQL database**, which maintains backup records of constraints and event-server mappings.
-     - Constraints from the failed server are restored, and another **event server** takes over execution.
+   - When an event's deadline expires, the responsible **Event Server Node** (the one that received the event creation request):
+     - Initiates the distributed scheduling algorithm.
+     - Coordinates with other **Event Server Nodes** to gather their respective partial solutions for the event.
+     - Computes the **final schedule** by intersecting all collected constraints.
+     - Records a scheduling failure in cases where no valid solution can be derived.
 
-5. **Final Solution Storage**
+5. **Result Storage and Cleanup**
 
-   - After the schedule is computed:
-     - The solution is stored in the **MySQL database**.
-     - All temporary constraints are deleted from the Redis databases of the event servers.
-     - Constraints related to the event are also removed from the MySQL database since they were only needed for recovery.
-
----
-
-### **Algorithm for Distributed Event Scheduling**
-
-#### **Algorithm Workflow**
-
-1. **Event Creation (Initialization Phase)**
-
-   - The **primary event server** (the one that receives the first request for an event) becomes the **leader** for that event.
-   - The leader:
-     - Records the event's deadline.
-     - Waits for constraint submissions and stores them in **Redis**.
-     - Continuously computes partial intersections of constraints.
-
-2. **Constraint Submission and Partial Solution Update**
-
-   - When a constraint is submitted, the server:
-     - Validates the format and stores it in Redis.
-     - Updates the **partial solution** by intersecting the current solution with the new constraint.
-     - If the event ID is unknown (i.e., the event was created on a different server):
-       - It stores the constraints locally but does not act as the leader.
-       - Relies on the leader to execute the final computation.
-
-3. **Final Solution Calculation (Execution Phase)**
-
-   - When the **deadline** expires, the leader:
-     - Ensures all request queues on all event servers are empty.
-     - Sends a synchronization signal to all servers to freeze updates.
-     - Collects constraints and partial solutions from other servers.
-   - The leader computes the **final solution**:
-     - Intersects all received constraints to find a valid time slot.
-     - If no solution exists, it reports failure after the deadline.
-
-4. **Result Distribution and Cleanup**
-
-   - The final solution is broadcast to all nodes and stored in the MySQL database.
-   - Redis databases clean up all temporary constraint data for the event.
+   - Once the final schedule is computed:
+     - The **Backend Node** stores the completed schedule in the **Database Node**.
+     - All temporary data, such as partial solutions related to the event, are removed from the **Mnesia DB** on the involved **Event Server Nodes**.
 
 ---
 
-### **Considerations**
+### **Design Considerations**
 
-1. **Event Server Failures**
+1. **Event Server Responsibilities**
 
-   - All event constraints are backed up in the **MySQL database**, enabling recovery if a server crashes.
-   - Use a **heartbeat mechanism** to monitor server health, and reassign events to healthy servers dynamically.
+   - **Partial Solutions Storage:** Each server uses **Mnesia DB** to store partial solutions reliably.
+   - **Distributed Coordination:** Servers collaborate to ensure efficient final schedule computation.
+   - **Deadline Ownership:** The server holding the event's deadline initiates the distributed scheduling algorithm upon deadline expiration.
 
-2. **Synchronization and Deadlines**
+2. **Fault Tolerance and Recovery**
 
-   - Only the **leader** node knows the event deadline and ensures no duplicate computations occur.
-   - Synchronization between servers is achieved using a lightweight **message-passing protocol** (e.g., Erlang’s built-in messaging or gRPC).
+   - The **Database Node** acts as a centralized backup for all critical event and constraint data, ensuring seamless recovery in the event of server failure.
+   - In the case of a failed **Event Server Node**, the **Backend Node** reassigns its tasks to an operational server, ensuring continued processing without data loss.
 
-3. **Concurrency Control**
+3. **Synchronization and Concurrency**
 
-   - Use a **queue-based processing model** for constraint submissions to prevent race conditions.
-   - Redis’ atomic operations ensure consistency during constraint updates.
+   - **Erlang's lightweight messaging protocols** enable efficient distributed communication among **Event Server Nodes**.
+   - **Mnesia DB** ensures atomic updates and consistency for all stored partial solutions.
 
 4. **Scalability**
 
-   - Add **more event servers** as load increases.
-   - The round-robin assignment ensures even distribution of load across servers.
+   - The system's modular design allows for independent scaling of the WebApp, Backend, and Event Server Nodes based on demand.
+   - New **Event Server Nodes** can be added seamlessly to handle increased workloads.
 
 ---
 
 ### **Tools and Technologies**
 
-1. **Frontend and WebApp**
+1. **Frontend (WebApp)**
 
-   - **Java JSP** with **Apache Tomcat** for the user-facing component.
-   - Handles user input and redirects requests to event servers.
+   - Developed using **Java JSP** and hosted on **Apache Tomcat** to provide a responsive user interface.
 
-2. **Backend Event Servers**
+2. **Backend**
 
-   - **Erlang** for distributed coordination and partial solution computation.
-   - **Redis** for fast in-memory storage of constraints.
-   - Lightweight **message-passing protocols** for synchronization (e.g., Erlang messaging).
+   - Implemented in **Java** for robust application logic and seamless integration with the database and event servers.
 
-3. **Database**
+3. **Event Servers**
 
-   - **MySQL** for persistent storage of user data, constraints, and completed events.
+   - Built with **Erlang** for high concurrency and fault-tolerant distributed processing.
+   - **Mnesia DB** ensures reliable local storage of constraints and partial solutions.
 
-4. **Load Balancing**
+4. **Database**
 
-   - Round-robin mechanism implemented at the WebApp node for distributing user requests to event servers.
-
-5. **Recovery**
-
-   - The **WebApp node** serves as the fail-safe by recovering data from the **MySQL database** if event servers fail.
+   - A **MySQL** database provides centralized, persistent storage for user credentials, event metadata, and final schedules.
 
 ---
 
 ### **Advantages**
 
-- **Scalability:** Easily add more event servers for larger workloads.
-- **Fault Tolerance:** Central database and recovery mechanisms handle server failures.
-- **Efficiency:** Partial constraint updates avoid recalculating the solution from scratch.
-- **Consistency:** Redis ensures atomic operations and consistency during updates.
+1. **Distributed Processing:**
+   - The **Event Server Nodes** handle computation locally, reducing bottlenecks and ensuring scalability.
+
+2. **Fault Tolerance:**
+   - Critical data is safeguarded in the **MySQL Database**, allowing for seamless recovery in the event of a node failure.
+
+3. **Efficiency:**
+   - Incremental updates to partial solutions minimize computational overhead and improve system responsiveness.
+
+4. **Modular Architecture:**
+   - The separation of components into WebApp, Backend, and Event Servers simplifies maintenance and enables independent scaling.
 
