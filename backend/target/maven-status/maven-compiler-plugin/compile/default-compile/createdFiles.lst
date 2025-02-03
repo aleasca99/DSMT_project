@@ -1,7 +1,11 @@
 com/whenly/config/OpenAPIConfig.class
+com/whenly/controller/ConstraintController.class
+com/whenly/repository/UserRepository.class
 com/whenly/BackendApplication.class
+com/whenly/controller/UserController.class
 com/whenly/service/EventService.class
 com/whenly/controller/EventController.class
-com/whenly/App.class
 com/whenly/repository/EventRepository.class
+com/whenly/service/UserService.class
 com/whenly/model/Event.class
+com/whenly/model/User.class
