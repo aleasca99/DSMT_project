@@ -1,0 +1,7 @@
+com/whenly/config/OpenAPIConfig.class
+com/whenly/BackendApplication.class
+com/whenly/service/EventService.class
+com/whenly/controller/EventController.class
+com/whenly/App.class
+com/whenly/repository/EventRepository.class
+com/whenly/model/Event.class

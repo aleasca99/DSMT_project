@@ -1,0 +1,7 @@
+/home/DSMT_project/backend/src/main/java/com/whenly/BackendApplication.java
+/home/DSMT_project/backend/src/main/java/com/whenly/repository/EventRepository.java
+/home/DSMT_project/backend/src/main/java/com/whenly/model/Event.java
+/home/DSMT_project/backend/src/main/java/com/whenly/service/EventService.java
+/home/DSMT_project/backend/src/main/java/com/whenly/controller/EventController.java
+/home/DSMT_project/backend/src/main/java/com/whenly/App.java
+/home/DSMT_project/backend/src/main/java/com/whenly/config/OpenAPIConfig.java
