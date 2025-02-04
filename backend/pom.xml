@@ -17,6 +17,14 @@
   </properties>
 
 
+  <repositories>
+    <repository>
+      <id>erlang-solutions</id>
+      <url>https://repo.hex.pm</url>
+    </repository>
+  </repositories>
+
+
 
   <dependencies>
     <!-- Spring Boot Starter Web -->
@@ -83,6 +91,15 @@
       <artifactId>spring-security-crypto</artifactId>
       <version>6.1.2</version> <!-- Controlla se questa è la tua versione di Spring Boot -->
     </dependency>
+
+    <dependency>
+      <groupId>com.ericsson.otp</groupId>
+      <artifactId>jinterface</artifactId>
+      <version>1.12.1</version>
+      <scope>system</scope>
+      <systemPath>/usr/lib/erlang/lib/jinterface-1.12.1/priv/OtpErlang.jar</systemPath>
+    </dependency>
+
 
 
   </dependencies>

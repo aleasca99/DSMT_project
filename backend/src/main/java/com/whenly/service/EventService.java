@@ -5,6 +5,7 @@ import com.whenly.model.User;
 import com.whenly.repository.ConstraintRepository;
 import com.whenly.repository.EventRepository;
 import com.whenly.repository.UserRepository;
+//import com.ericsson.otp.erlang.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +31,14 @@ public class EventService {
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
+    // 📌 Lista di nodi Erlang disponibili (IP delle macchine)
+    private final String[] erlangNodes = {
+            "192.168.1.101",
+            "192.168.1.102",
+            "192.168.1.103"
+    };
+    private int currentNodeIndex = 0; // Indice per Round Robin
+
     public ResponseEntity<Map<String, String>> createEvent(String eventName, String deadline, String username) {
         Optional<User> userOpt = userRepository.findByUsername(username);
         if (userOpt.isEmpty()) {
@@ -43,12 +52,33 @@ public class EventService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid deadline format. Use 'YYYY-MM-DD HH:mm'");
         }
 
-        Event newEvent = new Event(eventName, userOpt.get().getUsername(), parsedDeadline);
-        eventRepository.save(newEvent);
+        // 📌 Seleziona un nodo Erlang con Round Robin
+        String assignedErlangNode = erlangNodes[currentNodeIndex];
+        currentNodeIndex = (currentNodeIndex + 1) % erlangNodes.length;
 
+        // 📢 Invia il messaggio al backend Erlang
+        boolean success = true;//;sendEventToErlang(eventName, parsedDeadline, assignedErlangNode);
+
+        if (!success) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to notify Erlang backend");
+        }
+
+        // 📌 Salviamo l'evento con l'IP del nodo Erlang selezionato
+        Event newEvent = new Event(eventName, userOpt.get().getUsername(), parsedDeadline, assignedErlangNode);
+        eventRepository.save(newEvent);
+        Long eventId = newEvent.getId();
+
+        // 📌 Risposta HTTP
         Map<String, String> response = new HashMap<>();
         response.put("message", "Event created successfully");
+        response.put("eventId", String.valueOf(eventId));
+        response.put("assignedErlangNode", assignedErlangNode);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+
+    public boolean sendEventToErlang(Long eventId, LocalDateTime deadline) {
+        return true;
     }
 
     public ResponseEntity<Map<String, String>> getEventById(Long eventId) {
@@ -63,6 +93,7 @@ public class EventService {
         response.put("eventName", event.getEventName());
         response.put("creator", event.getCreatorUsername());
         response.put("deadline", event.getDeadline().toString());
+        response.put("erlangNodeIp", event.getErlangNodeIp()); // 📌 Aggiunto l'IP del nodo Erlang
 
         return ResponseEntity.ok(response);
     }
@@ -75,7 +106,8 @@ public class EventService {
                 .map(event -> Map.of(
                         "eventName", event.getEventName(),
                         "creator", event.getCreatorUsername(),
-                        "result", event.getFinalResult() != null ? event.getFinalResult() : event.getDeadline().toString()
+                        "result", event.getFinalResult() != null ? event.getFinalResult() : event.getDeadline().toString(),
+                        "erlangNodeIp", event.getErlangNodeIp() // 📌 Aggiunto l'IP del nodo Erlang
                 ))
                 .collect(Collectors.toList());
 

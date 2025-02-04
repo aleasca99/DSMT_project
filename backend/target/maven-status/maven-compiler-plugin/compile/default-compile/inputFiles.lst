@@ -1,11 +1,14 @@
-/home/DSMT_project/backend/src/main/java/com/whenly/repository/UserRepository.java
 /home/DSMT_project/backend/src/main/java/com/whenly/BackendApplication.java
 /home/DSMT_project/backend/src/main/java/com/whenly/controller/UserController.java
-/home/DSMT_project/backend/src/main/java/com/whenly/model/User.java
 /home/DSMT_project/backend/src/main/java/com/whenly/repository/EventRepository.java
 /home/DSMT_project/backend/src/main/java/com/whenly/model/Event.java
-/home/DSMT_project/backend/src/main/java/com/whenly/service/EventService.java
 /home/DSMT_project/backend/src/main/java/com/whenly/controller/EventController.java
 /home/DSMT_project/backend/src/main/java/com/whenly/config/OpenAPIConfig.java
+/home/DSMT_project/backend/src/main/java/com/whenly/repository/UserRepository.java
+/home/DSMT_project/backend/src/main/java/com/whenly/model/User.java
+/home/DSMT_project/backend/src/main/java/com/whenly/model/Constraint.java
+/home/DSMT_project/backend/src/main/java/com/whenly/service/EventService.java
+/home/DSMT_project/backend/src/main/java/com/whenly/repository/ConstraintRepository.java
+/home/DSMT_project/backend/src/main/java/com/whenly/service/ConstraintService.java
 /home/DSMT_project/backend/src/main/java/com/whenly/controller/ConstraintController.java
 /home/DSMT_project/backend/src/main/java/com/whenly/service/UserService.java
