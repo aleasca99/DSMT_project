@@ -1,0 +1,1 @@
+-record(event_record, {eventid, solution}).
