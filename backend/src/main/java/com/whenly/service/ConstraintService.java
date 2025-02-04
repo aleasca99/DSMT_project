@@ -45,6 +45,11 @@ public class ConstraintService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found");
         }
 
+        // Verifica se il vincolo esiste già per lo stesso utente e evento
+        if (constraintRepository.existsByEventIdAndUsername(eventId, username)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A constraint for this event and user already exists");
+        }
+
         // Parsing delle date
         LocalDateTime parsedLowerLimit, parsedUpperLimit;
         try {
