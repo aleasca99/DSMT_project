@@ -8,7 +8,9 @@
 -module(config_reader).
 
 %% API exports
--export([load_config/0, get_backend_node/0]).
+-export([load_config/0, 
+        get_backend_node/0,
+        get_nodes/0]).
 
 -define(CONFIG_FILE, "config.json").
 
@@ -67,4 +69,21 @@ get_backend_node() ->
         _ ->
             io:format("Invalid backend node configuration in ~s~n", [?CONFIG_FILE]),
             undefined
+    end.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Retrieves the list of nodes from the configuration.
+%%
+%% The nodes are expected to be provided as a JSON array of strings.
+%% This function converts them to atoms for further use in messaging.
+%%
+%% Returns the list of nodes as atoms if present; otherwise, returns an empty list.
+get_nodes() ->
+    Config = load_config(),
+    %% The nodes are provided as a list of binaries under the key <<"nodes">>.
+    case maps:get(<<"nodes">>, Config, undefined) of
+        undefined -> [];
+        List when is_list(List) ->
+            [ binary_to_atom(NodeBin, utf8) || NodeBin <- List ]
     end.

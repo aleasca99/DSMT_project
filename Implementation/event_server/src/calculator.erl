@@ -49,8 +49,6 @@ intersect_two({S1, E1}, {S2, E2}) ->
     %% Compute the maximum of the start times and the minimum of the end times.
     MaxStart = max(S1, S2),
     MinEnd   = min(E1, E2),
-    %% MaxStart = if S1 >= S2 -> S1; true -> S2 end,
-    %% MinEnd   = if E1 =< E2 -> E1; true -> E2 end,
     if
         MaxStart < MinEnd -> {MaxStart, MinEnd};
         true -> undefined

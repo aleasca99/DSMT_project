@@ -5,6 +5,8 @@
 %% Provides APIs to get, store and delete event partial solutions.
 %%--------------------------------------------------------------------
 -module(storage).
+
+%% Include the record definition.
 -include("storage.hrl").
 
 -behaviour(gen_server).
@@ -30,7 +32,11 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-%% get_solution(EventId) returns the stored partial solution, or undefined.
+%% get_solution(EventId) returns:
+%%  - undefined if no partial solution is stored for the event yet.
+%%  - no_solution if the event has no solution.
+%%  - expired if the deadline has passed.
+%%  - the existing partial solution otherwise.
 get_solution(EventId) ->
     gen_server:call(?MODULE, {get_solution, EventId}).
 
@@ -61,19 +67,19 @@ handle_call({get_solution, EventId}, _From, State) ->
     F = fun() ->
                 case mnesia:read(?TABLE, EventId, read) of
                     [] -> undefined;
-                    [#event_record{solution = Sol}] -> Sol
+                    [#event_record{partialsolution = Sol}] -> Sol
                 end
         end,
     %% Execute the transaction and process its result
     Result = case mnesia:transaction(F) of
                 {atomic, Sol} -> Sol;
                 {aborted, _Reason} -> undefined
-                end,
+             end,
     {reply, Result, State};
 
 handle_call({store_solution, EventId, PartialSolution}, _From, State) ->
     F = fun() ->
-                Record = #event_record{eventid = EventId, solution = PartialSolution},
+                Record = #event_record{eventid = EventId, partialsolution = PartialSolution},
                 mnesia:write(?TABLE, Record, write)
         end,
     _ = mnesia:transaction(F),

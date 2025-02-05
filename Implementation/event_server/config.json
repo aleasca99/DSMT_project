@@ -1,9 +1,9 @@
 {
     "backend": "backend_node@localhost",
     "nodes": [
-        "event_node1@localhost",
-        "event_node2@localhost",
-        "event_node3@localhost"
+        "event_node1@PC-Giovanni",
+        "event_node2@PC-Giovanni",
+        "event_node3@PC-Giovanni"
     ]
 }
   

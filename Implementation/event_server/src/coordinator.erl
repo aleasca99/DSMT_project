@@ -4,7 +4,7 @@
 %%
 %% Handles event creation requests by scheduling a deadline expiration.
 %% When the deadline is reached, it gathers partial solutions from all nodes,
-%% computes the final solution, sends it to the backend and deletes the event data.
+%% computes the final solution and sends it to the backend.
 %%--------------------------------------------------------------------
 -module(coordinator).
 
@@ -40,17 +40,10 @@ create_event(EventId, Deadline, Constraints) ->
 %%%===================================================================
 
 init([]) ->
-    %% Read the list of node names from config. For example, assume the config
-    %% has a key <<"nodes">> which is a JSON array of node names.
-    Config = config_reader:load_config(),
-    %% Assume the nodes are provided as a list of binaries under the key <<"nodes">>.
-    Nodes = case maps:get(<<"nodes">>, Config, undefined) of
-                undefined -> [];
-                List when is_list(List) ->
-                    [ binary_to_atom(NodeBin, utf8) || NodeBin <- List ]
-            end,
+    %% Read the configuration to get the list of nodes.
+    Nodes = config_reader:get_nodes(),
     %% Register self in the global registry (if desired).
-    global:register_name(coordinator, self()),
+    % global:register_name(coordinator, self()),
     {ok, #state{nodes = Nodes}}.
 
 handle_call({create_event, EventId, Deadline, Constraints}, _From, State) ->
@@ -65,7 +58,10 @@ handle_call({create_event, EventId, Deadline, Constraints}, _From, State) ->
     %% Compute delay (in milliseconds) until the deadline.
     Now = erlang:system_time(second),
     DelaySecs = Deadline - Now,
-    Delay = if DelaySecs > 0 -> DelaySecs * 1000; true -> 0 end,
+    Delay = if DelaySecs > 0 -> 
+                DelaySecs * 1000; 
+                true -> 0 
+            end,
     %% Schedule the deadline timeout.
     TimerRef = erlang:send_after(Delay, self(), {deadline, EventId}),
     NewTimers = maps:put(EventId, TimerRef, State#state.timers),
@@ -80,19 +76,20 @@ handle_cast(_Msg, State) ->
 handle_info({deadline, EventId}, State) ->
     io:format("Deadline reached for event ~p. Initiating final solution computation.~n", [EventId]),
     %% Gather partial solutions from all nodes.
-    %% We use the list of nodes from our state.
+    %% Using the list of nodes from the State.
     PartialSolutions = gather_solutions(EventId, State#state.nodes),
-    %% Also include our own local storage.
+    %% Also include the local solution.
     LocalSolution = storage:get_solution(EventId),
     AllSolutions = [LocalSolution | PartialSolutions],
     FinalSolution = calculator:final_intersection(AllSolutions),
     io:format("Final solution for event ~p is: ~p~n", [EventId, FinalSolution]),
     %% Send the final solution to the backend.
     BackendNode = config_reader:get_backend_node(),
-    send_final_solution(BackendNode, EventId, FinalSolution),
-    %% Delete the event data from storage on all nodes.
-    delete_event_all(EventId, State#state.nodes),
-    %% Remove the timer from our state.
+    %% send_final_solution(BackendNode, EventId, FinalSolution),
+    send_final_solution(undefined, EventId, FinalSolution),
+    %% Store on all nodes that the event has expired.
+    event_expired(EventId, State#state.nodes),
+    %% Remove the timer from the State.
     NewTimers = maps:remove(EventId, State#state.timers),
     {noreply, State#state{timers = NewTimers}};
 
@@ -117,7 +114,6 @@ gather_solutions(_EventId, [], Acc) ->
     Acc;
 gather_solutions(EventId, [Node | Rest], Acc) ->
     %% Use RPC to call storage:get_solution/1 on Node.
-    %% We assume that all nodes run the same code.
     case rpc:call(Node, storage, get_solution, [EventId]) of
         {'badrpc', _} ->
             io:format("Warning: Could not gather solution from node ~p for event ~p~n", [Node, EventId]),
@@ -130,10 +126,21 @@ gather_solutions(EventId, [Node | Rest], Acc) ->
 send_final_solution(undefined, EventId, FinalSolution) ->
     io:format("No backend configured; final solution for event ~p: ~p~n", [EventId, FinalSolution]);
 send_final_solution(BackendNode, EventId, FinalSolution) ->
-    io:format("Sending final solution for event ~p to backend on node ~p~n", [EventId, BackendNode]). %, 
+    io:format("Sending final solution for event ~p to backend on node ~p~n", [EventId, BackendNode]), 
+    %% TO BE IMPLEMENTED: Send the final solution to the backend.
     %% In a real system, you might send a message or use an RPC.
     %% Here we simply call a function in the backend module.
     % backend:final_solution(EventId, FinalSolution).
+    io:format("Please implement sending the final solution to the backend.~n").
+
+%% Stores on the local and remote nodes that the event has expired.
+event_expired(EventId, Nodes) ->
+    storage:store_solution(EventId, expired),
+    lists:foreach(
+      fun(Node) -> 
+              rpc:call(Node, storage, store_solution, [EventId, expired])
+      end,
+      Nodes).
 
 %% Deletes event data from local storage and from nodes.
 delete_event_all(EventId, Nodes) ->

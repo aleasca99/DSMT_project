@@ -1,1 +1,1 @@
--record(event_record, {eventid, solution}).
+-record(event_record, {eventid, partialsolution}).

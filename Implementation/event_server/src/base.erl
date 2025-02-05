@@ -1,11 +1,11 @@
 %%--------------------------------------------------------------------
 %% @doc
-%% Base module.
+%% Base module for the Event Server.
 %%
 %% Receives all requests from the backend.
 %% - For event creation it calls the coordinator.
 %% - For constraint submissions it retrieves the current partial solution
-%%   from storage, computes the new intersection using calculator,
+%%   from storage (if any), computes the new intersection using calculator,
 %%   and updates storage.
 %%--------------------------------------------------------------------
 -module(base).
@@ -61,6 +61,9 @@ handle_call({add_constraint, EventId, NewConstraints}, _From, State) ->
             {reply, ok, State};
         no_solution ->
             %% Already determined that no solution is possible; ignore further constraints.
+            {reply, ok, State};
+        expired -> 
+            %% The deadline has passed; ignore further constraints.
             {reply, ok, State};
         ExistingSolution ->
             %% Compute the new partial solution.
