@@ -18,9 +18,7 @@
          terminate/2, code_change/3]).
 
 -record(state, {
-    %% Map of EventId -> TimerRef for scheduled deadlines
-    timers = #{},
-    %% List of other node names (atoms) to gather partial solutions from.
+    %% List of node names (atoms) to gather partial solutions from.
     nodes = []
 }).
 
@@ -40,10 +38,26 @@ create_event(EventId, Deadline, Constraints) ->
 %%%===================================================================
 
 init([]) ->
+    %% Delay the initialization of the coordinator to 
+    %% be sure all the other processes are started.
+    timer:sleep(1000),
     %% Read the configuration to get the list of nodes.
     Nodes = config_reader:get_nodes(),
-    %% Register self in the global registry (if desired).
-    % global:register_name(coordinator, self()),
+    %% Get all stored deadlines (if any) and schedule the corresponding timers.
+    Deadlines = storage:get_all_deadlines(),
+    io:format("Coordinator starting with deadlines: ~p~n", [Deadlines]),
+    Now = erlang:system_time(second),
+    lists:foreach(
+        fun({EventId, Deadline}) ->
+                DelaySecs = Deadline - Now,
+                Delay = if DelaySecs > 0 -> 
+                            DelaySecs * 1000; 
+                            true -> 0 
+                        end,
+                erlang:send_after(Delay, self(), {deadline, EventId})
+        end,
+        Deadlines),
+    io:format("Coordinator started with nodes: ~p~n", [Nodes]),
     {ok, #state{nodes = Nodes}}.
 
 handle_call({create_event, EventId, Deadline, Constraints}, _From, State) ->
@@ -55,6 +69,8 @@ handle_call({create_event, EventId, Deadline, Constraints}, _From, State) ->
         _ ->
             storage:store_solution(EventId, Constraints)
     end,
+    %% Store the event deadline.
+    storage:store_deadline(EventId, Deadline),
     %% Compute delay (in milliseconds) until the deadline.
     Now = erlang:system_time(second),
     DelaySecs = Deadline - Now,
@@ -63,9 +79,8 @@ handle_call({create_event, EventId, Deadline, Constraints}, _From, State) ->
                 true -> 0 
             end,
     %% Schedule the deadline timeout.
-    TimerRef = erlang:send_after(Delay, self(), {deadline, EventId}),
-    NewTimers = maps:put(EventId, TimerRef, State#state.timers),
-    {reply, ok, State#state{timers = NewTimers}};
+    erlang:send_after(Delay, self(), {deadline, EventId}),
+    {reply, ok, State};
 
 handle_call(_Request, _From, State) ->
     {reply, error, State}.
@@ -79,9 +94,9 @@ handle_info({deadline, EventId}, State) ->
     %% Using the list of nodes from the State.
     PartialSolutions = gather_solutions(EventId, State#state.nodes),
     %% Also include the local solution.
-    LocalSolution = storage:get_solution(EventId),
-    AllSolutions = [LocalSolution | PartialSolutions],
-    FinalSolution = calculator:final_intersection(AllSolutions),
+    % LocalSolution = storage:get_solution(EventId),
+    % AllSolutions = [LocalSolution | PartialSolutions],
+    FinalSolution = calculator:final_intersection(PartialSolutions),
     io:format("Final solution for event ~p is: ~p~n", [EventId, FinalSolution]),
     %% Send the final solution to the backend.
     BackendNode = config_reader:get_backend_node(),
@@ -89,9 +104,9 @@ handle_info({deadline, EventId}, State) ->
     send_final_solution(undefined, EventId, FinalSolution),
     %% Store on all nodes that the event has expired.
     event_expired(EventId, State#state.nodes),
-    %% Remove the timer from the State.
-    NewTimers = maps:remove(EventId, State#state.timers),
-    {noreply, State#state{timers = NewTimers}};
+    %% Delete event deadline from storage.
+    storage:delete_deadline(EventId),
+    {noreply, State};
 
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -133,18 +148,18 @@ send_final_solution(BackendNode, EventId, FinalSolution) ->
     % backend:final_solution(EventId, FinalSolution).
     io:format("Please implement sending the final solution to the backend.~n").
 
-%% Stores on the local and remote nodes that the event has expired.
+%% Stores on all nodes that the event has expired.
 event_expired(EventId, Nodes) ->
-    storage:store_solution(EventId, expired),
+    % storage:store_solution(EventId, expired),
     lists:foreach(
       fun(Node) -> 
               rpc:call(Node, storage, store_solution, [EventId, expired])
       end,
       Nodes).
 
-%% Deletes event data from local storage and from nodes.
+%% Deletes event data from all nodes.
 delete_event_all(EventId, Nodes) ->
-    storage:delete_event(EventId),
+    % storage:delete_event(EventId),
     lists:foreach(
       fun(Node) ->
               rpc:call(Node, storage, delete_event, [EventId])

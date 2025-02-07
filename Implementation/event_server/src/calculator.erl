@@ -25,6 +25,12 @@
 %%   intersect([{10, 20}, {25, 35}], [{15, 30}]) returns [{15,20}, {25,30}]
 %%   intersect([{10, 20}], [{21, 30}]) returns no_solution
 %%--------------------------------------------------------------------
+intersect(expired, _) -> expired;
+intersect(_, expired) -> expired;
+intersect(no_solution, _) -> no_solution;
+intersect(_, no_solution) -> no_solution;
+intersect(Intervals1, Intervals2) when not is_list(Intervals1); not is_list(Intervals2) ->
+    invalid_solution;
 intersect(Intervals1, Intervals2) ->
     %% For each pair of intervals, compute their intersection (if any)
     NewIntervals = [ I ||
@@ -37,7 +43,7 @@ intersect(Intervals1, Intervals2) ->
         [] -> no_solution;
         _  -> NewIntervals
     end.
-
+    
 %%--------------------------------------------------------------------
 %% @private
 %% intersect_two({S1, E1}, {S2, E2}) -> Intersection | undefined
@@ -70,11 +76,14 @@ final_intersection([]) ->
     [];
 final_intersection([Solution]) ->
     Solution;
+final_intersection([undefined | Rest]) -> 
+    final_intersection(Rest);
+final_intersection([Solution, undefined | Rest]) -> 
+    final_intersection([Solution | Rest]);
 final_intersection([Solution1, Solution2 | Rest]) ->
-    TempSolution = intersect(Solution1, Solution2),
-    case TempSolution of
-        no_solution ->
+    case intersect(Solution1, Solution2) of
+        no_solution -> 
             no_solution;
-        _ ->
+        TempSolution -> 
             final_intersection([TempSolution | Rest])
     end.

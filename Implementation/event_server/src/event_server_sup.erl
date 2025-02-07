@@ -2,9 +2,10 @@
 %% @doc
 %% Supervisor module for the Event Server Nodes.
 %%
-%% It spawns the base, coordinator and storage processes.
-%% The supervision strategy is one_for_all: if one child terminates,
-%% all children are restarted.
+%% It spawns the storage, base and coordinator processes.
+%% The possible supervision strategy are
+%%   - one_for_one: If a child process terminates, only that process is restarted.
+%%   - one_for_all: If one child terminates, all children are restarted.
 %%--------------------------------------------------------------------
 -module(event_server_sup).
 
@@ -29,17 +30,24 @@ start_link() ->
 init([]) ->
 
     %% Supervisor flags
-    %% one_for_all strategy: if any child fails, all children are restarted.
     SupFlags = #{
-                    strategy => one_for_all, 
+                    strategy => one_for_one, 
                     intensity => 5, 
                     period => 10
                 },
 
     %% Child specifications
-    %% base, coordinator and storage export a start_link/0 
+    %% storage, base and coordinator export a start_link/0 
     %% function that starts them as gen_servers
     ChildSpecs = [
+        #{
+            id => storage,
+            start => {storage, start_link, []},
+            restart => permanent,
+            shutdown => 5000,
+            type => worker,
+            modules => [storage]
+        },
         #{
             id => base,
             start => {base, start_link, []},
@@ -55,14 +63,6 @@ init([]) ->
             shutdown => 5000,
             type => worker,
             modules => [coordinator]
-        },
-        #{
-            id => storage,
-            start => {storage, start_link, []},
-            restart => permanent,
-            shutdown => 5000,
-            type => worker,
-            modules => [storage]
         }
     ],
 
