@@ -100,8 +100,7 @@ handle_info({deadline, EventId}, State) ->
     io:format("Final solution for event ~p is: ~p~n", [EventId, FinalSolution]),
     %% Send the final solution to the backend.
     BackendNode = config_reader:get_backend_node(),
-    %% send_final_solution(BackendNode, EventId, FinalSolution),
-    send_final_solution(undefined, EventId, FinalSolution),
+    send_final_solution(BackendNode, EventId, FinalSolution),
     %% Store on all nodes that the event has expired.
     event_expired(EventId, State#state.nodes),
     %% Delete event deadline from storage.
@@ -142,11 +141,8 @@ send_final_solution(undefined, EventId, FinalSolution) ->
     io:format("No backend configured; final solution for event ~p: ~p~n", [EventId, FinalSolution]);
 send_final_solution(BackendNode, EventId, FinalSolution) ->
     io:format("Sending final solution for event ~p to backend on node ~p~n", [EventId, BackendNode]), 
-    %% TO BE IMPLEMENTED: Send the final solution to the backend.
-    %% In a real system, you might send a message or use an RPC.
-    %% Here we simply call a function in the backend module.
-    % backend:final_solution(EventId, FinalSolution).
-    io:format("Please implement sending the final solution to the backend.~n").
+    %% Send the final solution to the erlang backend.
+    rpc:call(BackendNode, erlang_backend_api, final_solution, [EventId, FinalSolution]).
 
 %% Stores on all nodes that the event has expired.
 event_expired(EventId, Nodes) ->

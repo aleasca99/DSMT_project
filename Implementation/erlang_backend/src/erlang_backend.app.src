@@ -1,8 +1,8 @@
-{application, event_server, [
-    {description, "Event Server"},
+{application, erlang_backend, [
+    {description, "Erlang Backend"},
     {vsn, "0.1.0"},
     {registered, []},
-    {mod, {event_server_app, []}},
+    {mod, {erlang_backend_app, []}},
     {applications, [
         kernel,
         stdlib

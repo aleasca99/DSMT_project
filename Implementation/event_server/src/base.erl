@@ -45,6 +45,10 @@ add_constraint(EventId, NewConstraints) ->
 %%%===================================================================
 
 init([]) ->
+    %% Get Backend node from configuration.
+    BackendNode = config_reader:get_backend_node(),
+    %% Connect to the Backend node using net_adm:ping/1.
+    net_adm:ping(BackendNode),
     {ok, #state{}}.
 
 handle_call({create_event, EventId, Deadline, Constraints}, _From, State) ->
