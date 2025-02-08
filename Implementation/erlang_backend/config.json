@@ -1,8 +1,8 @@
 {
     "event_server_nodes": [
         "event_server1@10.2.1.10",
-        "event_node2@PC-Giovanni",
-        "event_node3@PC-Giovanni"
+        "event_server2@PC-Giovanni",
+        "event_server3@PC-Giovanni"
     ]
 }
   
