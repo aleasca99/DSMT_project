@@ -1,5 +1,6 @@
 package com.whenly.service;
 
+import com.ericsson.otp.erlang.*;
 import com.whenly.model.Constraint;
 import com.whenly.model.Event;
 import com.whenly.repository.ConstraintRepository;
@@ -10,15 +11,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.Map;
-import java.io.OutputStream;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class ConstraintService {
@@ -29,14 +24,14 @@ public class ConstraintService {
     @Autowired
     private EventRepository eventRepository;
 
-    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    @Autowired
+    private SharedStringList sharedStringList; // Per la lista condivisa degli IP
 
-    private final String[] erlangNodes = {
-            "http://192.168.1.101:4000/api/receive_constraint",
-            "http://192.168.1.102:4000/api/receive_constraint",
-            "http://192.168.1.103:4000/api/receive_constraint"
-    };
-    private int currentNodeIndex = 0;
+    @Autowired
+    private ErlangBackendAPI erlangBackendAPI; // Per la comunicazione con Erlang
+
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private int currentNodeIndex = 0; // Per la selezione Round Robin
 
     public ResponseEntity<Map<String, String>> addConstraint(Long eventId, String lowerLimit, String upperLimit, String username) {
         // Verifica se l'evento esiste
@@ -54,11 +49,13 @@ public class ConstraintService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid date format. Use 'YYYY-MM-DD HH:mm'");
         }
 
-        // Seleziona la macchina Erlang con bilanciamento circolare
-        String assignedNode = erlangNodes[currentNodeIndex];
-        currentNodeIndex = (currentNodeIndex + 1) % erlangNodes.length;
+        // Seleziona un nodo Erlang disponibile
+        String assignedNode = selectErlangNode();
+        if (assignedNode == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "No available Erlang nodes");
+        }
 
-        // Invia il vincolo alla macchina Erlang
+        // Invia il vincolo al nodo Erlang
         boolean sentSuccessfully = sendConstraintToErlang(eventId, parsedLowerLimit, parsedUpperLimit, assignedNode);
 
         if (!sentSuccessfully) {
@@ -69,34 +66,60 @@ public class ConstraintService {
         Constraint newConstraint = new Constraint(eventOpt.get(), parsedLowerLimit, parsedUpperLimit, username, assignedNode);
         constraintRepository.save(newConstraint);
 
+        // Prepara la risposta
         Map<String, String> response = new HashMap<>();
         response.put("message", "Constraint added successfully");
         response.put("assignedNode", assignedNode);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    private boolean sendConstraintToErlang(Long eventId, LocalDateTime lowerLimit, LocalDateTime upperLimit, String erlangUrl) {
+    /**
+     * Seleziona un nodo Erlang disponibile utilizzando Round Robin.
+     * L'accesso alla lista degli indirizzi è thread-safe.
+     *
+     * @return L'indirizzo IP del nodo selezionato o null se la lista è vuota.
+     */
+    private String selectErlangNode() {
+        List<String> nodes = sharedStringList.getStrings();
+        if (nodes.isEmpty()) {
+            return null; // Nessun nodo disponibile
+        }
+
+        // Round Robin
+        synchronized (this) {
+            String selectedNode = nodes.get(currentNodeIndex);
+            currentNodeIndex = (currentNodeIndex + 1) % nodes.size();
+            return selectedNode;
+        }
+    }
+
+    /**
+     * Invia un vincolo al cluster Erlang tramite ErlangBackendAPI.
+     *
+     * @param eventId      ID dell'evento.
+     * @param lowerLimit   Limite inferiore del vincolo.
+     * @param upperLimit   Limite superiore del vincolo.
+     * @param assignedNode Nodo Erlang assegnato.
+     * @return True se l'invio ha avuto successo, false altrimenti.
+     */
+    private boolean sendConstraintToErlang(Long eventId, LocalDateTime lowerLimit, LocalDateTime upperLimit, String assignedNode) {
         try {
-            URL url = new URL(erlangUrl);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("POST");
-            connection.setRequestProperty("Content-Type", "application/json");
-            connection.setDoOutput(true);
+            // Converte i limiti in formato Unix timestamp
+            long unixLowerLimit = lowerLimit.toEpochSecond(java.time.ZoneOffset.UTC);
+            long unixUpperLimit = upperLimit.toEpochSecond(java.time.ZoneOffset.UTC);
 
-            String jsonPayload = String.format(
-                    "{\"eventId\": %d, \"lowerLimit\": \"%s\", \"upperLimit\": \"%s\"}",
-                    eventId, lowerLimit.toString(), upperLimit.toString()
-            );
+            // Costruisce la lista dei vincoli come Erlang tuple
+            OtpErlangObject[] constraintTuple = new OtpErlangObject[]{
+                new OtpErlangLong(unixLowerLimit),
+                new OtpErlangLong(unixUpperLimit)
+            };
+            OtpErlangList constraints = new OtpErlangList(new OtpErlangObject[]{new OtpErlangTuple(constraintTuple)});
 
-            try (OutputStream os = connection.getOutputStream()) {
-                byte[] input = jsonPayload.getBytes(StandardCharsets.UTF_8);
-                os.write(input, 0, input.length);
-            }
-
-            int responseCode = connection.getResponseCode();
-            return responseCode == 200;
-
+            // Invoca il metodo di ErlangBackendAPI
+            erlangBackendAPI.addConstraint(assignedNode, String.valueOf(eventId), constraints);
+            return true;
         } catch (Exception e) {
+            e.printStackTrace();
             return false;
         }
     }

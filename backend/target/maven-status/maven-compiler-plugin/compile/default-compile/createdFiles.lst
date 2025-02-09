@@ -1,3 +1,4 @@
+com/whenly/service/ErlangBackendAPI.class
 com/whenly/repository/UserRepository.class
 com/whenly/repository/ConstraintRepository.class
 com/whenly/service/EventService.class
@@ -8,7 +9,10 @@ com/whenly/model/User.class
 com/whenly/config/OpenAPIConfig.class
 com/whenly/controller/ConstraintController.class
 com/whenly/BackendApplication.class
+com/whenly/service/SharedStringList.class
 com/whenly/controller/UserController.class
+com/whenly/config/ErlangConfig.class
 com/whenly/repository/EventRepository.class
+com/whenly/service/ErlangMessageHandler.class
 com/whenly/model/Event.class
 com/whenly/service/ConstraintService.class
