@@ -81,13 +81,13 @@ handle_cast(_Msg, State) ->
 handle_info({create_event, Node, EventId, Deadline, Constraints}, State) ->
     io:format("Backend API: Creating event ~p with deadline ~p and constraints ~p on node ~p~n", [EventId, Deadline, Constraints, Node]),
     %% RPC call to the base module on the specified node.
-    rpc:call(Node, base, create_event, [EventId, Deadline, Constraints]).    
+    rpc:call(Node, base, create_event, [EventId, Deadline, Constraints]),    
     {noreply, State};
 
 handle_info({add_constraint, Node, EventId, NewConstraints}, State) ->
     io:format("Backend API: Adding constraints ~p to event ~p on node ~p~n", [NewConstraints, EventId, Node]),
     %% RPC call to the base module on the specified node.
-    rpc:call(Node, base, add_constraint, [EventId, NewConstraints]).
+    rpc:call(Node, base, add_constraint, [EventId, NewConstraints]),
     {noreply, State};
 
 handle_info({nodeup, Node}, State) ->
