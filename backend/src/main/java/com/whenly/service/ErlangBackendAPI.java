@@ -146,6 +146,94 @@ public class ErlangBackendAPI {
         }
     }
 
+
+private void processMessage(OtpErlangObject msg) {
+    System.out.println("Received message: " + msg);
+
+    executorService.submit(() -> {
+        try {
+            // Controllo che il messaggio sia una tupla
+            if (msg instanceof OtpErlangTuple) {
+                OtpErlangTuple tuple = (OtpErlangTuple) msg;
+
+                // Analisi del messaggio in base alla sua struttura
+                if (tuple.arity() == 3) {
+                    OtpErlangAtom type = (OtpErlangAtom) tuple.elementAt(0);
+                    switch (type.atomValue()) {
+                        case "node_status":
+                            handleNodeStatus(tuple);
+                            break;
+                        case "final_solution":
+                            handleFinalSolution(tuple);
+                            break;
+                        default:
+                            System.err.println("Unknown message type: " + type.atomValue());
+                    }
+                } else {
+                    System.err.println("Unexpected tuple size: " + tuple.arity());
+                }
+            } else {
+                System.err.println("Message is not a tuple: " + msg);
+            }
+
+            // Notifica ai gestori
+            for (ErlangMessageHandler handler : handlers) {
+                handler.onMessageReceived(msg);
+            }
+        } catch (Exception e) {
+            System.err.println("Error processing message: " + e.getMessage());
+            e.printStackTrace();
+        }
+    });
+}
+
+private void handleNodeStatus(OtpErlangTuple tuple) {
+    try {
+        // Estrazione degli elementi del messaggio {node_status, Node, up/down}
+        OtpErlangAtom node = (OtpErlangAtom) tuple.elementAt(1);
+        OtpErlangAtom status = (OtpErlangAtom) tuple.elementAt(2);
+
+        if (status.atomValue().equals("up")) {
+            onNodeUp(node.atomValue());
+        } else if (status.atomValue().equals("down")) {
+            onNodeDown(node.atomValue());
+        } else {
+            System.err.println("Unknown node status: " + status.atomValue());
+        }
+    } catch (Exception e) {
+        System.err.println("Error handling node_status message: " + e.getMessage());
+    }
+}
+
+private void handleFinalSolution(OtpErlangTuple tuple) {
+    try {
+        // Estrazione degli elementi del messaggio {final_solution, EventId, FinalSolution}
+        OtpErlangString eventId = (OtpErlangString) tuple.elementAt(1);
+        OtpErlangObject finalSolution = tuple.elementAt(2);
+
+        onFinalSolution(eventId.stringValue(), finalSolution);
+    } catch (Exception e) {
+        System.err.println("Error handling final_solution message: " + e.getMessage());
+    }
+}
+
+// Funzioni specifiche per le azioni
+private void onNodeUp(String nodeName) {
+    System.out.println("Node is up: " + nodeName);
+    // Implementa la logica per il nodo "up"
+}
+
+private void onNodeDown(String nodeName) {
+    System.out.println("Node is down: " + nodeName);
+    // Implementa la logica per il nodo "down"
+}
+
+private void onFinalSolution(String eventId, OtpErlangObject solution) {
+    System.out.println("Final solution received for EventId: " + eventId + ", Solution: " + solution);
+    // Implementa la logica per gestire la soluzione finale
+}
+
+
         /**
      * Main method for testing purposes.
      * This method demonstrates sending a create event and a constraint request.
