@@ -21,15 +21,15 @@ public class ConstraintController {
 
     @Operation(
             summary = "Add constraints to an event",
-            description = "Adds a list of constraints for an event. Each constraint should have 'lowerLimit' and 'upperLimit' in the format 'YYYY-MM-DD HH:mm'."
+            description = "Adds a list of constraints for an event. Each constraint should be a string formatted as 'lowerLimit,upperLimit'."
     )
     @PostMapping("/add")
     public ResponseEntity<Map<String, String>> addConstraints(
             @Parameter(name = "eventId", description = "ID of the event", required = true)
             @RequestParam Long eventId,
 
-            @Parameter(name = "constraints", description = "List of constraints, each with 'lowerLimit' and 'upperLimit' (format: YYYY-MM-DD HH:mm)", required = true)
-            @RequestBody List<Map<String, String>> constraints,
+            @Parameter(name = "constraints", description = "List of constraints, each formatted as 'lowerLimit,upperLimit'", required = true)
+            @RequestBody List<String> constraints,
 
             @Parameter(name = "username", description = "Username of the constraint submitter", required = true)
             @RequestParam String username) {

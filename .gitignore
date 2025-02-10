@@ -1,1 +1,3 @@
 backend/target/classes/application.properties
+#remove all .class files
+backend/target/classes/**/*.class

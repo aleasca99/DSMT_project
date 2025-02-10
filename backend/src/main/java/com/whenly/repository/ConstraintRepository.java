@@ -34,4 +34,6 @@ public interface ConstraintRepository extends JpaRepository<Constraint, Long> {
      */
     @Query("SELECT c FROM Constraint c WHERE c.event.id = :eventId")
     List<Constraint> findConstraintsByEventId(@Param("eventId") Long eventId);
+
+    
 }
