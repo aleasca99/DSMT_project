@@ -123,4 +123,9 @@ public class ConstraintService {
             return false;
         }
     }
+
+    public List<Constraint> getUnfinishedConstraintsByNode(String erlangNode) {
+        return constraintRepository.findUnfinishedConstraintsByNode(erlangNode);
+    }
+    
 }

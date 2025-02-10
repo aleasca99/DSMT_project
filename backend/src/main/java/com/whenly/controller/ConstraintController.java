@@ -34,6 +34,7 @@ public class ConstraintController {
             @Parameter(name = "username", description = "Username of the constraint submitter", required = true)
             @RequestParam String username) {
 
+        // Chiama il ConstraintService per aggiungere il vincolo
         return constraintService.addConstraint(eventId, lowerLimit, upperLimit, username);
     }
 }
