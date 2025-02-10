@@ -9,7 +9,9 @@
 
 %% API exports
 -export([load_config/0, 
-        get_nodes/0]).
+        get_nodes/0,
+        get_java_backend_mailbox/0,
+        get_java_backend_node/0]).
 
 -define(CONFIG_FILE, "config.json").
 
@@ -61,4 +63,50 @@ get_nodes() ->
         undefined -> [];
         List when is_list(List) ->
             [ binary_to_atom(NodeBin, utf8) || NodeBin <- List ]
+    end.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Retrieves the java backend mailbox name from the configuration.
+%%
+%% The java backend mailbox is expected to be provided as a string in the JSON config.
+%% This function converts it to an atom for further use in messaging.
+%%
+%% Returns the java backend mailbox as an atom if present; otherwise, returns undefined.
+get_java_backend_mailbox() ->
+    Config = load_config(),
+    %% JSON keys are binaries when using return_maps.
+    case maps:get(<<"java_backend_mailbox">>, Config, undefined) of
+        undefined -> 
+            io:format("Java Backend mailbox not configured in ~s~n", [?CONFIG_FILE]),
+            undefined;
+        JavaBackendMailboxBin when is_binary(JavaBackendMailboxBin) ->
+            %% Convert binary to atom.
+            binary_to_atom(JavaBackendMailboxBin, utf8);
+        _ -> 
+            io:format("Invalid Java backend mailbox configuration in ~s~n", [?CONFIG_FILE]),
+            undefined
+    end.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Retrieves the java backend node name from the configuration.
+%%
+%% The java backend node is expected to be provided as a string in the JSON config.
+%% This function converts it to an atom for further use in messaging.
+%%
+%% Returns the java backend node as an atom if present; otherwise, returns undefined.
+get_java_backend_node() ->
+    Config = load_config(),
+    %% JSON keys are binaries when using return_maps.
+    case maps:get(<<"java_backend_node">>, Config, undefined) of
+        undefined ->
+            io:format("Java Backend node not configured in ~s~n", [?CONFIG_FILE]),
+            undefined;
+        JavaBackendBin when is_binary(JavaBackendBin) ->
+            %% Convert binary to atom.
+            binary_to_atom(JavaBackendBin, utf8);
+        _ ->
+            io:format("Invalid Java backend node configuration in ~s~n", [?CONFIG_FILE]),
+            undefined
     end.
