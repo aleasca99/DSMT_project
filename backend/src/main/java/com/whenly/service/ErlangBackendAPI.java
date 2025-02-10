@@ -6,10 +6,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.springframework.beans.factory.annotation.Autowired;
-
-import com.whenly.service.EventService;
-
 
 /**
  * Class for communicating with Erlang nodes and interacting with Spring services.
@@ -25,12 +21,6 @@ public class ErlangBackendAPI {
     private final OtpMbox mbox;
     private final ExecutorService executorService;
     private final CopyOnWriteArrayList<ErlangMessageHandler> handlers;
-
-
-    @Autowired
-    private SharedStringList sharedStringList;
-
-    private EventService eventService;
 
     /**
      * Creates a Java OTP node and opens a mailbox.
@@ -92,93 +82,12 @@ public class ErlangBackendAPI {
      */
     private void processMessage(OtpErlangObject msg) {
         System.out.println("Received message: " + msg);
-    
         executorService.submit(() -> {
-            try {
-                // Controllo che il messaggio sia una tupla
-                if (msg instanceof OtpErlangTuple) {
-                    OtpErlangTuple tuple = (OtpErlangTuple) msg;
-    
-                    // Analisi del messaggio in base alla sua struttura
-                    if (tuple.arity() == 3) {
-                        OtpErlangAtom type = (OtpErlangAtom) tuple.elementAt(0);
-                        switch (type.atomValue()) {
-                            case "node_status":
-                                handleNodeStatus(tuple);
-                                break;
-                            case "final_solution":
-                                handleFinalSolution(tuple);
-                                break;
-                            default:
-                                System.err.println("Unknown message type: " + type.atomValue());
-                        }
-                    } else {
-                        System.err.println("Unexpected tuple size: " + tuple.arity());
-                    }
-                } else {
-                    System.err.println("Message is not a tuple: " + msg);
-                }
-    
-                // Notifica ai gestori
-                for (ErlangMessageHandler handler : handlers) {
-                    handler.onMessageReceived(msg);
-                }
-            } catch (Exception e) {
-                System.err.println("Error processing message: " + e.getMessage());
-                e.printStackTrace();
+            for (ErlangMessageHandler handler : handlers) {
+                handler.onMessageReceived(msg);
             }
         });
     }
-    
-    private void handleNodeStatus(OtpErlangTuple tuple) {
-        try {
-            // Estrazione degli elementi del messaggio {node_status, Node, up/down}
-            OtpErlangAtom node = (OtpErlangAtom) tuple.elementAt(1);
-            OtpErlangAtom status = (OtpErlangAtom) tuple.elementAt(2);
-    
-            if (status.atomValue().equals("up")) {
-                onNodeUp(node.atomValue());
-            } else if (status.atomValue().equals("down")) {
-                onNodeDown(node.atomValue());
-            } else {
-                System.err.println("Unknown node status: " + status.atomValue());
-            }
-        } catch (Exception e) {
-            System.err.println("Error handling node_status message: " + e.getMessage());
-        }
-    }
-    
-    private void handleFinalSolution(OtpErlangTuple tuple) {
-        try {
-            // Estrazione degli elementi del messaggio {final_solution, EventId, FinalSolution}
-            OtpErlangString eventId = (OtpErlangString) tuple.elementAt(1);
-            OtpErlangObject finalSolution = tuple.elementAt(2);
-    
-            onFinalSolution(eventId.stringValue(), finalSolution);
-        } catch (Exception e) {
-            System.err.println("Error handling final_solution message: " + e.getMessage());
-        }
-    }
-    
-    // Funzioni specifiche per le azioni
-    private void onNodeUp(String nodeName) {
-        eventService.addErlangNode(nodeName);
-
-    }
-    
-    private void onNodeDown(String nodeName) {
-        eventService.removeErlangNode(nodeName);
-        //chiamata all'algoritmo di recovery
-    }
-    
-    private void onFinalSolution(String eventId, OtpErlangObject solution) {
-        System.out.println("Final solution received for EventId: " + eventId + ", Solution: " + solution);
-        // funcion should push the solution into the database
-        eventService.updateFinalSolution(Long.parseLong(eventId), solution.toString());
-
-
-    }
-    
 
     /**
      * Sends a create event request to the specified Erlang node.
@@ -193,9 +102,9 @@ public class ErlangBackendAPI {
             // Costruzione dell'array di argomenti
             OtpErlangObject[] args = new OtpErlangObject[5];
             args[0] = new OtpErlangAtom("create_event");
-            args[1] = new OtpErlangAtom(targetNode); // Usa il parametro targetNode
-            args[2] = new OtpErlangString(eventId);  // Usa il parametro eventId
-            args[3] = new OtpErlangLong(deadline);  // Usa il parametro deadline
+            args[1] = new OtpErlangAtom("target test"); // Usa il parametro targetNode
+            args[2] = new OtpErlangString("id test");  // Usa il parametro eventId
+            args[3] = new OtpErlangLong(11);  // Usa il parametro deadline
             args[4] = constraints; // Usa il parametro constraints direttamente
     
             // Creazione del messaggio come una tupla
@@ -204,7 +113,7 @@ public class ErlangBackendAPI {
             // Invio del messaggio (supponendo che tu abbia una mailbox chiamata `mbox`)
             mbox.send("erlang_backend_api", "erlang_backend@10.2.1.9", msgToSend);
     
-            //System.out.println("Messaggio inviato al nodo Erlang con successo.");
+            System.out.println("Messaggio inviato al nodo Erlang con successo.");
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Errore durante l'invio del messaggio al nodo Erlang.");
@@ -220,19 +129,18 @@ public class ErlangBackendAPI {
      */
     public void addConstraint(String targetNode, String eventId, OtpErlangList newConstraints) {
         try {
-            //message format to send to erlang node is:
-            //{add_constraint, Node, EventId, NewConstraints}
             OtpErlangObject[] args = new OtpErlangObject[]{
+                new OtpErlangAtom("erlang_backend_api"),
                 new OtpErlangAtom("add_constraint"),
-                new OtpErlangAtom(targetNode),
-                new OtpErlangAtom(eventId),
-                newConstraints
+                new OtpErlangList(new OtpErlangObject[]{new OtpErlangAtom(eventId), newConstraints})
             };
 
-            OtpErlangObject msgToSend = new OtpErlangTuple(args);
+            OtpErlangTuple rpcCall = new OtpErlangTuple(new OtpErlangObject[]{mbox.self(), new OtpErlangTuple(args)});
 
-            mbox.send("erlang_backend_api", "erlang_backend@10.2.1.9", msgToSend);
+            mbox.send("erlang_backend_api", "erlang_backend@10.2.1.9", rpcCall);
 
+            OtpErlangObject reply = mbox.receive();
+            System.out.println("Received RPC reply: " + reply);
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -16,12 +16,4 @@ public interface ConstraintRepository extends JpaRepository<Constraint, Long> {
 
     @Query("SELECT c.event FROM Constraint c WHERE c.username = :username")
     List<Event> findEventsByUsername(@Param("username") String username);
-
-    @Query("SELECT c FROM Constraint c WHERE c.assignedErlangNode = :erlangNode AND c.event.finalResult IS NULL")
-    List<Constraint> findUnfinishedConstraintsByNode(@Param("erlangNode") String erlangNode);
-
-    @Query("SELECT c FROM Constraint c WHERE c.assignedErlangNode = :erlangNode AND c.event.finalResult IS NULL AND c.event.deadline < CURRENT_TIMESTAMP")
-    List<Constraint> findByErlangNodeAndUnfinishedEvents(String erlangNode);
-
-
 }

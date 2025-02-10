@@ -62,10 +62,6 @@ public class Event {
         return erlangNodeIp;
     }
 
-    public void setFinalSolution(String finalResult) {
-        this.finalResult = finalResult;
-    }
-
     public void setErlangNodeIp(String erlangNodeIp) {
         this.erlangNodeIp = erlangNodeIp;
     }

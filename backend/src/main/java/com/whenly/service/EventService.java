@@ -1,6 +1,5 @@
 package com.whenly.service;
 
-import com.whenly.model.Constraint;
 import com.whenly.model.Event;
 import com.whenly.model.User;
 import com.whenly.repository.ConstraintRepository;
@@ -15,7 +14,6 @@ import com.ericsson.otp.erlang.*;
 
 
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -25,9 +23,6 @@ public class EventService {
 
     @Autowired
     private EventRepository eventRepository;
-
-    @Autowired
-    private ConstraintRepository constraintRepository;
 
     @Autowired
     private UserRepository userRepository;
@@ -145,16 +140,6 @@ public class EventService {
     public void removeErlangNode(String nodeIp) {
         sharedStringList.removeString(nodeIp);
     }
-    public void updateFinalSolution(Long eventId, String finalSolution) {
-        Optional<Event> eventOpt = eventRepository.findById(eventId);
-        if (eventOpt.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found");
-        }
-
-        Event event = eventOpt.get();
-        event.setFinalSolution(finalSolution);
-        eventRepository.save(event);
-    }
 
     public ResponseEntity<List<Map<String, String>>> getEventsByUser(String username) {
 
@@ -182,56 +167,4 @@ public class EventService {
 
         return ResponseEntity.ok(response);
     }
-
-
-    //qui deve essere definita la chiamata della funzione di recovery
-    public void recoverFromNodeFailure(String failedNode) {
-    // Step 1: Recupera i constraint assegnati al nodo caduto
-    List<Constraint> constraintsToRecover = constraintRepository.findByErlangNodeAndUnfinishedEvents(failedNode);
-
-    // Step 2: Controlla i nodi attivi
-    List<String> activeNodes = sharedStringList.getStrings();
-    if (activeNodes.isEmpty()) {
-        throw new IllegalStateException("No active Erlang nodes available for recovery.");
-    }
-
-    // Step 3: Redistribuisci i constraint agli altri nodi
-    for (Constraint constraint : constraintsToRecover) {
-        String newNode = selectErlangNode(); // Ottiene un nuovo nodo usando Round Robin
-        if (newNode == null) {
-            throw new IllegalStateException("No available Erlang nodes for redistribution.");
-        }
-
-        // Aggiorna il nodo nel constraint
-        constraint.setErlangNode(newNode);
-        constraintRepository.save(constraint);
-
-        // Invia il constraint al nuovo nodo
-        OtpErlangObject[] intervalTuple = {
-            new OtpErlangLong(constraint.getLowerLimit().toEpochSecond(ZoneOffset.UTC)),
-            new OtpErlangLong(constraint.getUpperLimit().toEpochSecond(ZoneOffset.UTC))
-        };
-        OtpErlangList constraintList = new OtpErlangList(new OtpErlangObject[]{new OtpErlangTuple(intervalTuple)});
-
-        erlangBackendAPI.addConstraint(newNode, constraint.getEvent().getId().toString(), constraintList);
-    }
-
-    // Step 4: Gestisci gli eventi per i quali il nodo era "manager"
-    List<Event> eventsToRecover = eventRepository.findByErlangNodeIpAndFinalResultIsNull(failedNode);
-    for (Event event : eventsToRecover) {
-        String newManagerNode = selectErlangNode();
-        if (newManagerNode == null) {
-            throw new IllegalStateException("No available Erlang nodes to assign as new manager.");
-        }
-
-        // Aggiorna il nodo "manager" nel database
-        event.setErlangNodeIp(newManagerNode);
-        eventRepository.save(event);
-
-        // Invia il messaggio createEvent al nuovo nodo
-        erlangBackendAPI.createEvent(newManagerNode, event.getId().toString(),
-                event.getDeadline().toEpochSecond(ZoneOffset.UTC), new OtpErlangList());
-    }
-}
-
 }
