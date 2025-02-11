@@ -71,7 +71,7 @@ public class ErlangBackendAPI {
                                 handleNodeStatus(tuple);
                                 break;
                             case "final_solution":
-                                log.info("Received final solution message");
+                                log.info("Received final solution message" + tuple);
                                 handleFinalSolution(tuple);
                                 break;
                             default:
@@ -109,17 +109,38 @@ public class ErlangBackendAPI {
 
     private void handleFinalSolution(OtpErlangTuple tuple) {
         try {
-            // Estrazione: {final_solution, EventId, FinalSolution}
-            OtpErlangString eventId = (OtpErlangString) tuple.elementAt(1);
-            OtpErlangList finalSolution = (OtpErlangList) tuple.elementAt(2);
-            log.info("Received final solution: " + finalSolution);
-            log.info("Received EventId: " + eventId);
-            // Pubblica l'evento per la final solution
-            eventPublisher.publishEvent(new FinalSolutionEvent(eventId.stringValue(), finalSolution.toString()));
+            // Recupera l'oggetto eventId senza cast diretto
+            OtpErlangObject eventIdObj = tuple.elementAt(1);
+            String eventId;
+            if (eventIdObj instanceof OtpErlangString) {
+                eventId = ((OtpErlangString) eventIdObj).stringValue();
+            } else if (eventIdObj instanceof OtpErlangAtom) {
+                eventId = ((OtpErlangAtom) eventIdObj).atomValue();
+            } else {
+                throw new IllegalArgumentException("Unexpected type for eventId: " + eventIdObj.getClass().getName());
+            }
+            
+            // Il terzo elemento deve essere una lista: controlla e casta
+            OtpErlangObject finalSolutionObj = tuple.elementAt(2);
+            if (!(finalSolutionObj instanceof OtpErlangList)) {
+                throw new IllegalArgumentException("Final solution is not an OtpErlangList, but: " 
+                        + finalSolutionObj.getClass().getName());
+            }
+            OtpErlangList finalSolution = (OtpErlangList) finalSolutionObj;
+            
+            System.out.println("Received final solution: " + finalSolution);
+            System.out.println("Received eventId: " + eventId);
+            
+            // Esegui l'azione desiderata, per esempio pubblicare un evento o aggiornare il database
+            // Ad esempio, se usi un ApplicationEventPublisher:
+            eventPublisher.publishEvent(new FinalSolutionEvent(eventId, finalSolution.toString()));
+            
         } catch (Exception e) {
-            log.error("Error handling final_solution message: " + e.getMessage(), e);
+            System.err.println("Error handling final_solution message: " + e.getMessage());
+            e.printStackTrace();
         }
     }
+    
 
     // I metodi createEvent e addConstraint rimangono invariati
     public void createEvent(String targetNode, String eventId, long deadline, OtpErlangList constraints) {
@@ -127,7 +148,7 @@ public class ErlangBackendAPI {
             OtpErlangObject[] args = new OtpErlangObject[5];
             args[0] = new OtpErlangAtom("create_event");
             args[1] = new OtpErlangAtom(targetNode);
-            args[2] = new OtpErlangString(eventId);
+            args[2] = new OtpErlangAtom(eventId);
             args[3] = new OtpErlangLong(deadline);
             args[4] = constraints;
             OtpErlangObject msgToSend = new OtpErlangTuple(args);

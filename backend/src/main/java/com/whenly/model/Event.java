@@ -69,4 +69,5 @@ public class Event {
     public void setErlangNodeIp(String erlangNodeIp) {
         this.erlangNodeIp = erlangNodeIp;
     }
+    
 }

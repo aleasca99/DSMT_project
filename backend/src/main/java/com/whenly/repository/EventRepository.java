@@ -9,4 +9,6 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     
     List<Event> findByErlangNodeIpAndFinalResultIsNull(String erlangNodeIp);
 
+    
+
 }

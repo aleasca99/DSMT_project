@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigInteger;
 import java.util.List;
 
 @Repository
@@ -20,8 +21,10 @@ public interface ConstraintRepository extends JpaRepository<Constraint, Long> {
     /**
      * Recupera tutti gli eventi collegati a un determinato utente.
      */
-    @Query("SELECT c.event FROM Constraint c WHERE c.username = :username")
-    List<Event> findEventsByUsername(@Param("username") String username);
+    @Query(value = "SELECT DISTINCT event_id FROM `constraints` WHERE username = :username", nativeQuery = true)
+    List<BigInteger> findEventIdsByUsername(@Param("username") String username);
+    
+
 
     /**
      * Recupera tutti i vincoli assegnati a un nodo Erlang specifico che non hanno ancora un risultato finale.

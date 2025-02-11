@@ -131,7 +131,7 @@ public ResponseEntity<Map<String, String>> addConstraint(Long eventId, List<Stri
      * @param assignedNode    Nodo Erlang assegnato.
      * @return True se l'invio ha avuto successo, false altrimenti.
      */
-    private boolean sendConstraintsToErlang(Long eventId, List<Map<String, String>> constraintsList, String assignedNode) {
+    public boolean sendConstraintsToErlang(Long eventId, List<Map<String, String>> constraintsList, String assignedNode) {
         System.out.println("Questi sono i constraintsList: " + constraintsList);
         
         try {

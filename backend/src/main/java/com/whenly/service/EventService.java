@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import com.ericsson.otp.erlang.*;
 
+import java.math.BigInteger;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -33,6 +34,11 @@ public class EventService {
 
     @Autowired
     private UserRepository userRepository;
+
+
+    @Autowired
+    private ConstraintService constraintService; // Iniettato per poter usare la funzione di invio
+
 
     // Se necessario, EventService può ancora chiamare ErlangBackendAPI per inviare messaggi
     @Autowired
@@ -147,8 +153,38 @@ public class EventService {
         eventRepository.save(event);
     }
 
-    public ResponseEntity<List<Map<String, String>>> getEventsByUser(String username) {
-        return ResponseEntity.ok(List.of(Map.of("username", username, "event", "sample event")));
+      /**
+     * Restituisce la lista degli eventi a cui l'utente ha aggiunto constraint.
+     */
+
+     public ResponseEntity<List<Map<String, String>>> getEventsByUser(String username) {
+        // Recupera gli ID (come Number) dalla tabella dei constraint
+        List<BigInteger> rawIds = constraintRepository.findEventIdsByUsername(username);
+        if (rawIds == null || rawIds.isEmpty()) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+        
+        // Converti in List<Long>
+        List<Long> eventIds = rawIds.stream()
+                                    .map(BigInteger::longValue)
+                                    .collect(Collectors.toList());
+        
+        // Recupera gli eventi corrispondenti
+        List<Event> events = eventRepository.findAllById(eventIds);
+        
+        // Mappa ogni evento in una struttura Map<String, String> da restituire
+        List<Map<String, String>> eventMaps = new ArrayList<>();
+        for (Event event : events) {
+            Map<String, String> map = new HashMap<>();
+            map.put("eventId", String.valueOf(event.getId()));
+            map.put("eventName", event.getEventName());
+            map.put("creator", event.getCreatorUsername());
+            map.put("deadline", event.getDeadline().toString());
+            map.put("erlangNodeIp", event.getErlangNodeIp());
+            eventMaps.add(map);
+        }
+        
+        return ResponseEntity.ok(eventMaps);
     }
 
     public ResponseEntity<Map<String, String>> getEventById(Long eventId) {
@@ -162,7 +198,8 @@ public class EventService {
         response.put("eventName", event.getEventName());
         response.put("creator", event.getCreatorUsername());
         response.put("deadline", event.getDeadline().toString());
-        response.put("erlangNodeIp", event.getErlangNodeIp());
+        //response.put("erlangNodeIp", event.getErlangNodeIp());
+        response.put("finalSolution", event.getFinalResult());
         return ResponseEntity.ok(response);
     }
 
@@ -179,21 +216,24 @@ public class EventService {
             }
             constraint.setAssignedErlangNode(newNode);
             constraintRepository.save(constraint);
-            List<OtpErlangObject> intervalTuples = new ArrayList<>();
+            // Qui puoi chiamare direttamente la funzione di invio definita in ConstraintService:
             try {
                 List<Map<String, String>> constraintsAsList = constraint.getConstraintsAsList();
-                for (Map<String, String> interval : constraintsAsList) {
-                    OtpErlangObject[] tuple = new OtpErlangObject[2];
-                    tuple[0] = new OtpErlangLong(Long.parseLong(interval.get("start")));
-                    tuple[1] = new OtpErlangLong(Long.parseLong(interval.get("end")));
-                    intervalTuples.add(new OtpErlangTuple(tuple));
+                boolean sent = constraintService.sendConstraintsToErlang(
+                        constraint.getEvent().getId(),
+                        constraintsAsList,
+                        newNode
+                );
+                if (!sent) {
+                    // Gestisci il caso in cui l'invio non sia andato a buon fine
+                    System.err.println("Failed to resend constraints for event " + constraint.getEvent().getId());
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            OtpErlangList constraintList = new OtpErlangList(intervalTuples.toArray(new OtpErlangObject[0]));
-            erlangBackendAPI.addConstraint(newNode, constraint.getEvent().getId().toString(), constraintList);
         }
+        
+        // Recovery per gli eventi
         List<Event> eventsToRecover = eventRepository.findByErlangNodeIpAndFinalResultIsNull(failedNode);
         for (Event event : eventsToRecover) {
             String newManagerNode = selectErlangNode();
@@ -206,7 +246,6 @@ public class EventService {
                     event.getDeadline().toEpochSecond(ZoneOffset.UTC), new OtpErlangList());
         }
     }
-
     // --- METODI DI ASCOLTO DEGLI EVENTI PUBBLICATI DA ErlangBackendAPI ---
 
     @EventListener
@@ -225,6 +264,7 @@ public class EventService {
         } else if ("down".equals(event.getStatus())) {
             removeErlangNode(event.getNodeName());
             // Aggiungi eventuale logica di recovery
+            recoverFromNodeFailure(event.getNodeName());
         }
     }
 }

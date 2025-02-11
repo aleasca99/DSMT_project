@@ -1,3 +1,8 @@
 backend/target/classes/application.properties
 #remove all .class files
 backend/target/classes/**/*.class
+backend/target/classes/com/whenly/*/*.class
+backend/target/classes/com/whenly/repository/ConstraintRepository.class
+backend/target/classes/com/whenly/service/ConstraintService.class
+backend/target/classes/com/whenly/service/ErlangBackendAPI.class
+backend/target/classes/com/whenly/service/EventService.class
