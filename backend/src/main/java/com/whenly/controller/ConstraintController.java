@@ -28,7 +28,7 @@ public class ConstraintController {
             @Parameter(name = "eventId", description = "ID of the event", required = true)
             @RequestParam Long eventId,
 
-            @Parameter(name = "constraints", description = "List of constraints, each formatted as 'lowerLimit,upperLimit'", required = true)
+            @Parameter(name = "constraints", description = "List of constraints, each formatted as 'lowerLimit,upperLimit'", required = true, example = "[\"2022-01-01 12:00,2022-01-01 14:00\"]")
             @RequestBody List<String> constraints,
 
             @Parameter(name = "username", description = "Username of the constraint submitter", required = true)

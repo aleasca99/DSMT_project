@@ -84,15 +84,13 @@ public class EventService {
     }
 
     private String selectErlangNode() {
-        List<String> nodes = sharedStringList.getStrings();
-        if (nodes.isEmpty()) {
+        List<String> activeNodes = sharedStringList.getStrings();
+        if (activeNodes.isEmpty()) {
             return null;
         }
-        synchronized (this) {
-            String selectedNode = nodes.get(currentNodeIndex);
-            currentNodeIndex = (currentNodeIndex + 1) % nodes.size();
-            return selectedNode;
-        }
+        int index = currentNodeIndex % activeNodes.size();
+        currentNodeIndex++;
+        return activeNodes.get(index);
     }
 
     public boolean sendEventToErlang(Long eventID, LocalDateTime deadline, String assignedErlangNode) {
@@ -209,6 +207,15 @@ public class EventService {
         if (activeNodes.isEmpty()) {
             throw new IllegalStateException("No active Erlang nodes available for recovery.");
         }
+
+        //scegli solo i constraint che sono relativi a eventi che non hanno ancora un risultato finale
+        constraintsToRecover = constraintsToRecover.stream()
+                .filter(c -> c.getEvent().getFinalResult() == null)
+                .collect(Collectors.toList());
+
+        // Recovery per i vincoli
+        
+        System.out.println("Recupero da nodo fallito: " + failedNode);
         for (Constraint constraint : constraintsToRecover) {
             String newNode = selectErlangNode();
             if (newNode == null) {
@@ -243,7 +250,7 @@ public class EventService {
             event.setErlangNodeIp(newManagerNode);
             eventRepository.save(event);
             erlangBackendAPI.createEvent(newManagerNode, event.getId().toString(),
-                    event.getDeadline().toEpochSecond(ZoneOffset.UTC), new OtpErlangList());
+                    event.getDeadline().toEpochSecond(ZoneOffset.ofHours(1)), new OtpErlangList());
         }
     }
     // --- METODI DI ASCOLTO DEGLI EVENTI PUBBLICATI DA ErlangBackendAPI ---
@@ -261,8 +268,11 @@ public class EventService {
                            + event.getNodeName() + ", Status: " + event.getStatus());
         if ("up".equals(event.getStatus())) {
             addErlangNode(event.getNodeName());
+            //stampa tutti i nodi attivi
+            System.out.println("Active nodes: " + sharedStringList.getStrings());
         } else if ("down".equals(event.getStatus())) {
             removeErlangNode(event.getNodeName());
+            System.out.println("Removed node: " + event.getNodeName());
             // Aggiungi eventuale logica di recovery
             recoverFromNodeFailure(event.getNodeName());
         }

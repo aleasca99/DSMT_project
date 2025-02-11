@@ -15,7 +15,7 @@ public class SharedStringList {
     public SharedStringList() {
         this.stringSet = new HashSet<>();
         //aggiungi i nodi all'hashset
-        this.stringSet.add("event_server1@10.2.1.10");
+      
         
         this.lock = new ReentrantLock();
     }
