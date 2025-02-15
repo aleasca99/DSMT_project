@@ -1,6 +1,6 @@
 %%--------------------------------------------------------------------
 %% @doc
-%% Config Reader module for Backend Node.
+%% Config Reader module for Erlang Backend Node.
 %%
 %% This module reads configuration parameters from a JSON file (using jsx).
 %% It provides utility functions to retrieve configuration values.
@@ -56,6 +56,7 @@ get_value(Key) ->
 %% This function converts them to atoms for further use in messaging.
 %%
 %% Returns the list of event server nodes as atoms if present; otherwise, returns an empty list.
+%%--------------------------------------------------------------------
 get_nodes() ->
     Config = load_config(),
     %% The event server nodes are provided as a list of binaries under the key <<"event_server_nodes">>.
@@ -72,7 +73,8 @@ get_nodes() ->
 %% The java backend mailbox is expected to be provided as a string in the JSON config.
 %% This function converts it to an atom for further use in messaging.
 %%
-%% Returns the java backend mailbox as an atom if present; otherwise, returns undefined.
+%% Returns the java backend mailbox name as an atom if present; otherwise, returns undefined.
+%%--------------------------------------------------------------------
 get_java_backend_mailbox() ->
     Config = load_config(),
     %% JSON keys are binaries when using return_maps.
@@ -95,7 +97,8 @@ get_java_backend_mailbox() ->
 %% The java backend node is expected to be provided as a string in the JSON config.
 %% This function converts it to an atom for further use in messaging.
 %%
-%% Returns the java backend node as an atom if present; otherwise, returns undefined.
+%% Returns the java backend node name as an atom if present; otherwise, returns undefined.
+%%--------------------------------------------------------------------
 get_java_backend_node() ->
     Config = load_config(),
     %% JSON keys are binaries when using return_maps.

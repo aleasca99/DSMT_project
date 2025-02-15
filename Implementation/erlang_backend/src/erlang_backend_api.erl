@@ -5,7 +5,7 @@
 %% This module provides the following functionalities:
 %% - Exposes APIs to send create event and constraint requests
 %%   to the specified Erlang Event Server Node.
-%% - Monitors the nodes and notifies Java when a node goes down.
+%% - Monitors the nodes and notifies Java when a node goes down or up.
 %% - Receives final solutions (sent by the coordinator) and forwards
 %%   them to the Java backend.
 %%--------------------------------------------------------------------
@@ -59,13 +59,14 @@ init([]) ->
     net_kernel:monitor_nodes(true),
     %% Read the configuration to get the list of event server nodes.
     Nodes = config_reader:get_nodes(),
-    io:format("Backend API started and monitoring nodes: ~p~n", [Nodes]),
+    io:format("Event Server nodes: ~p~n", [Nodes]),
     %% Connecting to the event server nodes via net_adm:ping/1
     lists:foreach(fun(Node) -> net_adm:ping(Node) end, Nodes),
+    io:format("Erlang Backend API initialized.~n"),
     {ok, #state{}}.
 
 handle_call({final_solution, EventId, FinalSolution}, _From, State) ->
-    io:format("Backend API: Final solution for event ~p is: ~p~n", [EventId, FinalSolution]),
+    io:format("Erlang Backend API: Received final solution for event ~p: ~p~n", [EventId, FinalSolution]),
     %% Notify the Java backend about the final solution.
     JavaBackendMailbox = config_reader:get_java_backend_mailbox(),
     JavaBackendNode = config_reader:get_java_backend_node(),
@@ -79,19 +80,19 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 handle_info({create_event, Node, EventId, Deadline, Constraints}, State) ->
-    io:format("Backend API: Creating event ~p with deadline ~p and constraints ~p on node ~p~n", [EventId, Deadline, Constraints, Node]),
-    %% RPC call to the base module on the specified node.
+    io:format("Erlang Backend API: Received create event request for event ~p with deadline ~p and constraints ~p for node ~p~n", [EventId, Deadline, Constraints, Node]),
+    %% RPC call to the base module on the specified event server node.
     rpc:call(Node, base, create_event, [EventId, Deadline, Constraints]),    
     {noreply, State};
 
 handle_info({add_constraint, Node, EventId, NewConstraints}, State) ->
-    io:format("Backend API: Adding constraints ~p to event ~p on node ~p~n", [NewConstraints, EventId, Node]),
-    %% RPC call to the base module on the specified node.
+    io:format("Erlang Backend API: Received add constraint request for event ~p with new constraints ~p for node ~p~n", [EventId, NewConstraints, Node]),
+    %% RPC call to the base module on the specified event server node.
     rpc:call(Node, base, add_constraint, [EventId, NewConstraints]),
     {noreply, State};
 
 handle_info({nodeup, Node}, State) ->
-    io:format("Backend API: Node up ~p~n", [Node]),
+    io:format("Erlang Backend API: Node up ~p~n", [Node]),    
     %% Notify Java about the node-up event.
     JavaBackendMailbox = config_reader:get_java_backend_mailbox(),
     JavaBackendNode = config_reader:get_java_backend_node(),
@@ -99,7 +100,7 @@ handle_info({nodeup, Node}, State) ->
     {noreply, State};
 
 handle_info({nodedown, Node}, State) ->
-    io:format("Backend API: Node down ~p~n", [Node]),
+    io:format("Erlang Backend API: Node down ~p~n", [Node]),
     %% Notify Java that Node is down.
     JavaBackendMailbox = config_reader:get_java_backend_mailbox(),
     JavaBackendNode = config_reader:get_java_backend_node(),

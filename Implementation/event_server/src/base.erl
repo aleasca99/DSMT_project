@@ -2,7 +2,7 @@
 %% @doc
 %% Base module for the Event Server.
 %%
-%% Receives all requests from the backend.
+%% Receives all requests from the erlang backend.
 %% - For event creation it calls the coordinator.
 %% - For constraint submissions it retrieves the current partial solution
 %%   from storage (if any), computes the new intersection using calculator,
@@ -49,6 +49,7 @@ init([]) ->
     BackendNode = config_reader:get_backend_node(),
     %% Connect to the Backend node using net_adm:ping/1.
     net_adm:ping(BackendNode),
+    io:format("Base initialized.~n"),
     {ok, #state{}}.
 
 handle_call({create_event, EventId, Deadline, Constraints}, _From, State) ->

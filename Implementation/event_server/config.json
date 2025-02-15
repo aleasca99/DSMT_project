@@ -1,9 +1,9 @@
 {
-    "backend": "erlang_backend@10.2.1.9",
+    "backend": "erlang_backend@10.2.1.11",
     "nodes": [
-        "event_server1@10.2.1.10",
-        "event_server2@PC-Giovanni",
-        "event_server3@PC-Giovanni"
+        "event_server1@10.2.1.9",
+        "event_server2@10.2.1.10",
+        "event_server3@10.2.1.21"
     ]
 }
   

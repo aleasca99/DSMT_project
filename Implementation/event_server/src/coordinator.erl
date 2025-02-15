@@ -4,7 +4,7 @@
 %%
 %% Handles event creation requests by scheduling a deadline expiration.
 %% When the deadline is reached, it gathers partial solutions from all nodes,
-%% computes the final solution and sends it to the backend.
+%% computes the final solution and sends it to the erlang backend.
 %%--------------------------------------------------------------------
 -module(coordinator).
 
@@ -43,9 +43,11 @@ init([]) ->
     timer:sleep(1000),
     %% Read the configuration to get the list of nodes.
     Nodes = config_reader:get_nodes(),
+    io:format("Event Server nodes: ~p~n", [Nodes]),
     %% Get all stored deadlines (if any) and schedule the corresponding timers.
+    %% This is a recovery mechanism in case the coordinator was restarted.
     Deadlines = storage:get_all_deadlines(),
-    io:format("Coordinator starting with deadlines: ~p~n", [Deadlines]),
+    io:format("Deadlines: ~p~n", [Deadlines]),
     Now = erlang:system_time(second),
     lists:foreach(
         fun({EventId, Deadline}) ->
@@ -57,7 +59,7 @@ init([]) ->
                 erlang:send_after(Delay, self(), {deadline, EventId})
         end,
         Deadlines),
-    io:format("Coordinator started with nodes: ~p~n", [Nodes]),
+    io:format("Coordinator initialized.~n"),
     {ok, #state{nodes = Nodes}}.
 
 handle_call({create_event, EventId, Deadline, Constraints}, _From, State) ->
@@ -93,15 +95,21 @@ handle_info({deadline, EventId}, State) ->
     %% Gather partial solutions from all nodes.
     %% Using the list of nodes from the State.
     PartialSolutions = gather_solutions(EventId, State#state.nodes),
-    %% Also include the local solution.
-    % LocalSolution = storage:get_solution(EventId),
-    % AllSolutions = [LocalSolution | PartialSolutions],
+    %% Compute the final solution.
     FinalSolution = calculator:final_intersection(PartialSolutions),
-    io:format("Final solution for event ~p is: ~p~n", [EventId, FinalSolution]),
-    %% Send the final solution to the backend.
-    BackendNode = config_reader:get_backend_node(),
-    send_final_solution(BackendNode, EventId, FinalSolution),
-    %% Store on all nodes that the event has expired.
+    io:format("Computed final solution for event ~p: ~p~n", [EventId, FinalSolution]),
+    %% Ensure the final solution is sent to the backend 
+    %% only if it hasn't been handled already.
+    case FinalSolution of
+        expired ->
+            io:format("Event Solution already computed when current node was down.~n");
+        _ ->
+            %% Send the final solution to the backend.
+            BackendNode = config_reader:get_backend_node(),
+            send_final_solution(BackendNode, EventId, FinalSolution)
+    end,
+    %% Store on all nodes that the event has expired 
+    %% (i.e., the final solution has been computed).
     event_expired(EventId, State#state.nodes),
     %% Delete event deadline from storage.
     storage:delete_deadline(EventId),
@@ -138,15 +146,21 @@ gather_solutions(EventId, [Node | Rest], Acc) ->
 
 %% Sends the final solution to the backend.
 send_final_solution(undefined, EventId, FinalSolution) ->
-    io:format("No backend configured; final solution for event ~p: ~p~n", [EventId, FinalSolution]);
+    io:format("No backend configured. Final solution for event ~p: ~p~n", [EventId, FinalSolution]);
 send_final_solution(BackendNode, EventId, FinalSolution) ->
-    io:format("Sending final solution for event ~p to backend on node ~p~n", [EventId, BackendNode]), 
+    io:format("Sending final solution to backend on node ~p~n", [BackendNode]),
+    %% Normalizing the FinalSolution so it always follows the list-of-tuples format.
+    %% In this way the Java Backend can always expect a list of tuples.
+    FinalSolutionToSend = case FinalSolution of
+                                undefined -> [{undefined, 0}];
+                                no_solution -> [{no_solution, 0}];
+                                _ -> FinalSolution
+                          end,
     %% Send the final solution to the erlang backend.
-    rpc:call(BackendNode, erlang_backend_api, final_solution, [EventId, FinalSolution]).
+    rpc:call(BackendNode, erlang_backend_api, final_solution, [EventId, FinalSolutionToSend]).
 
 %% Stores on all nodes that the event has expired.
 event_expired(EventId, Nodes) ->
-    % storage:store_solution(EventId, expired),
     lists:foreach(
       fun(Node) -> 
               rpc:call(Node, storage, store_solution, [EventId, expired])
@@ -155,7 +169,6 @@ event_expired(EventId, Nodes) ->
 
 %% Deletes event data from all nodes.
 delete_event_all(EventId, Nodes) ->
-    % storage:delete_event(EventId),
     lists:foreach(
       fun(Node) ->
               rpc:call(Node, storage, delete_event, [EventId])

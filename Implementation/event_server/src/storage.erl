@@ -1,9 +1,9 @@
-%%--------------------------------------------------------------------
+%%-------------------------------------------------------------------------------
 %% @doc
 %% Storage module using Mnesia.
 %%
-%% Provides APIs to get, store and delete event partial solutions.
-%%--------------------------------------------------------------------
+%% Provides APIs to get, store and delete event partial solutions and deadlines.
+%%-------------------------------------------------------------------------------
 -module(storage).
 
 %% Include the record definition.
@@ -81,13 +81,16 @@ init([]) ->
     %% Create the Partial Solution table with disc_copies on the local node.
     TableDefPartialSolution = [{attributes, record_info(fields, event_record)},
                                {disc_copies, [node()]},
+                               {local_content, true},
                                {record_name, event_record}],
     mnesia:create_table(?PARTIAL_SOLUTIONS_TABLE, TableDefPartialSolution),
     %% Create the Deadline table with disc_copies on the local node.
     TableDefDeadline = [{attributes, record_info(fields, event_deadline)},
                         {disc_copies, [node()]},
+                        {local_content, true},
                         {record_name, event_deadline}],
     mnesia:create_table(?DEADLINES_TABLE, TableDefDeadline),
+    io:format("Storage initialized.~n"),
     {ok, #state{}}.
 
 handle_call({get_solution, EventId}, _From, State) ->

@@ -49,12 +49,12 @@ get_value(Key) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Retrieves the backend node name from the configuration.
+%% Retrieves the erlang backend node name from the configuration.
 %%
 %% The backend node is expected to be provided as a string in the JSON config.
 %% This function converts it to an atom for further use in messaging.
 %%
-%% Returns the backend node as an atom if present; otherwise, returns undefined.
+%% Returns the erlang backend node as an atom if present; otherwise, returns undefined.
 %%--------------------------------------------------------------------
 get_backend_node() ->
     Config = load_config(),
@@ -79,6 +79,7 @@ get_backend_node() ->
 %% This function converts them to atoms for further use in messaging.
 %%
 %% Returns the list of nodes as atoms if present; otherwise, returns an empty list.
+%%--------------------------------------------------------------------
 get_nodes() ->
     Config = load_config(),
     %% The nodes are provided as a list of binaries under the key <<"nodes">>.

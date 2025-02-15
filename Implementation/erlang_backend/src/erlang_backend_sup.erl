@@ -1,6 +1,6 @@
 %%--------------------------------------------------------------------
 %% @doc
-%% Supervisor for the backend application.
+%% Supervisor for the erlang backend application.
 %%
 %% Starts the erlang_backend_api process.
 %%--------------------------------------------------------------------
