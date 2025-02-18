@@ -151,7 +151,7 @@ public class ConstraintService {
      * @return True if the constraints were sent successfully, false otherwise.
      */
     public boolean sendConstraintsToErlang(Long eventId, List<Map<String, String>> constraintsList, String assignedNode) {
-        System.out.println("These are the constraintsList: " + constraintsList);
+        //System.out.println("These are the constraintsList: " + constraintsList);
         
         try {
             // Construct an Erlang list of constraint tuples,

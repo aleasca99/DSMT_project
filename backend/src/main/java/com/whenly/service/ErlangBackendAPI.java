@@ -169,8 +169,8 @@ public class ErlangBackendAPI {
             }
             OtpErlangList finalSolution = (OtpErlangList) finalSolutionObj;
             
-            System.out.println("Received final solution: " + finalSolution);
-            System.out.println("Received eventId: " + eventId);
+            //System.out.println("Received final solution: " + finalSolution);
+            //System.out.println("Received eventId: " + eventId);
             
             // Execute the desired action, such as publishing an event or updating the database.
             // In this example, a FinalSolutionEvent is published.

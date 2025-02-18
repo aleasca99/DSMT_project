@@ -89,8 +89,8 @@ public class EventService {
         Event newEvent = new Event(eventName, userOpt.get().getUsername(), parsedDeadline, assignedErlangNode);
         eventRepository.save(newEvent);
         Long eventId = newEvent.getId();
-        System.out.println("Event created successfully with ID: " + eventId);
-        System.out.println("Sending event to Erlang backend...");
+        //System.out.println("Event created successfully with ID: " + eventId);
+        //System.out.println("Sending event to Erlang backend...");
         
         // Send the event details to the Erlang backend
         boolean success = sendEventToErlang(eventId, parsedDeadline, assignedErlangNode);
@@ -136,7 +136,7 @@ public class EventService {
             long unixDeadline = deadline.toEpochSecond(ZoneOffset.ofHours(1));
             // Create an empty Erlang list for constraints (if any)
             OtpErlangList constraints = new OtpErlangList();
-            System.out.println("Sending event to Erlang backend: " + eventID.toString());
+            //System.out.println("Sending event to Erlang backend: " + eventID.toString());
             // Call the createEvent method in ErlangBackendAPI to send the event details
             erlangBackendAPI.createEvent(assignedErlangNode, eventID.toString(), unixDeadline, constraints);
             return true;
@@ -192,8 +192,8 @@ public class EventService {
         String firstElement = parts[0].trim().replaceAll("[\\[\\{\\]\\}]", "");
         String secondElement = parts[1].trim().replaceAll("[\\[\\{\\]\\}]", "");
 
-        System.err.println("First element: " + firstElement);
-        System.err.println("Second element: " + secondElement);
+        //System.err.println("First element: " + firstElement);
+        //System.err.println("Second element: " + secondElement);
 
         // If the solution indicates 'undefined' or 'no_solution', update the event accordingly
         if (firstElement.equals("undefined") || firstElement.equals("no_solution")) {
@@ -206,8 +206,8 @@ public class EventService {
         LocalDateTime firstElementDate = LocalDateTime.ofEpochSecond(Long.parseLong(firstElement), 0, ZoneOffset.ofHours(1));
         LocalDateTime secondElementDate = LocalDateTime.ofEpochSecond(Long.parseLong(secondElement), 0, ZoneOffset.ofHours(1));
 
-        System.err.println("First element: " + firstElementDate);
-        System.err.println("Second element: " + secondElementDate);
+        //System.err.println("First element: " + firstElementDate);
+        //System.err.println("Second element: " + secondElementDate);
 
         // Create a string representation of the final solution using the parsed dates
         String solutionToInsert = firstElementDate.toString() + ", " + secondElementDate.toString();
@@ -296,7 +296,7 @@ public class EventService {
                 .collect(Collectors.toList());
 
         // Begin recovery for constraints
-        System.out.println("Recovering from failed node: " + failedNode);
+        //System.out.println("Recovering from failed node: " + failedNode);
         for (Constraint constraint : constraintsToRecover) {
             // Select a new Erlang node using round-robin selection
             String newNode = selectErlangNode();
@@ -348,8 +348,8 @@ public class EventService {
      */
     @EventListener
     public void handleFinalSolutionEvent(FinalSolutionEvent event) {
-        System.out.println("EventService received FinalSolutionEvent for EventId: " 
-                           + event.getEventId() + ", Solution: " + event.getSolution());
+        //System.out.println("EventService received FinalSolutionEvent for EventId: " 
+        //                 + event.getEventId() + ", Solution: " + event.getSolution());
         // Update the event with the received final solution
         updateFinalSolution(Long.parseLong(event.getEventId()), event.getSolution());
     }
@@ -366,11 +366,11 @@ public class EventService {
         if ("up".equals(event.getStatus())) {
             // If the node is up, add it to the active nodes list and display active nodes
             addErlangNode(event.getNodeName());
-            System.out.println("Active nodes: " + sharedStringList.getStrings());
+            //System.out.println("Active nodes: " + sharedStringList.getStrings());
         } else if ("down".equals(event.getStatus())) {
             // If the node is down, remove it and trigger recovery procedures
             removeErlangNode(event.getNodeName());
-            System.out.println("Removed node: " + event.getNodeName());
+            //System.out.println("Removed node: " + event.getNodeName());
             // Execute recovery logic for the failed node
             recoverFromNodeFailure(event.getNodeName());
         }
