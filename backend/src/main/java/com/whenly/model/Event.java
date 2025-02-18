@@ -34,38 +34,46 @@ public class Event {
         this.erlangNodeIp = erlangNodeIp;
     }
 
+    // Default constructor
     public Event() {
     }
 
-    // Getter e Setter
+    // Get the ID of the event
     public Long getId() {
         return id;
     }
 
+    // Get the name of the event
     public String getEventName() {
         return eventName;
     }
 
+    // Get the username of the creator of the event
     public String getCreatorUsername() {
         return creatorUsername;
     }
 
+    // Get the deadline of the event
     public LocalDateTime getDeadline() {
         return deadline;
     }
 
+    // Get the final result of the event
     public String getFinalResult() {
         return finalResult;
     }
 
+    // Get the IP address of the Erlang node
     public String getErlangNodeIp() {
         return erlangNodeIp;
     }
 
+    // Set the final result of the event
     public void setFinalSolution(String finalResult) {
         this.finalResult = finalResult;
     }
 
+    // Set the IP address of the Erlang node
     public void setErlangNodeIp(String erlangNodeIp) {
         this.erlangNodeIp = erlangNodeIp;
     }

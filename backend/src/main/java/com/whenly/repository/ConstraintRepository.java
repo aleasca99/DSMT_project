@@ -14,29 +14,25 @@ import java.util.List;
 public interface ConstraintRepository extends JpaRepository<Constraint, Long> {
 
     /**
-     * Verifica se esistono vincoli per un determinato evento e utente.
+     * Checks if constraints exist for a specific event and user.
      */
     boolean existsByEventIdAndUsername(Long eventId, String username);
 
     /**
-     * Recupera tutti gli eventi collegati a un determinato utente.
+     * Retrieves all event IDs associated with a specific user.
      */
     @Query(value = "SELECT DISTINCT event_id FROM `constraints` WHERE username = :username", nativeQuery = true)
     List<BigInteger> findEventIdsByUsername(@Param("username") String username);
-    
-
 
     /**
-     * Recupera tutti i vincoli assegnati a un nodo Erlang specifico che non hanno ancora un risultato finale.
+     * Retrieves all constraints assigned to a specific Erlang node that do not yet have a final result.
      */
     @Query("SELECT c FROM Constraint c WHERE c.assignedErlangNode = :erlangNode")
     List<Constraint> findConstraintsByErlangNode(@Param("erlangNode") String erlangNode);
 
     /**
-     * Recupera tutti i vincoli per un evento specifico.
+     * Retrieves all constraints for a specific event.
      */
     @Query("SELECT c FROM Constraint c WHERE c.event.id = :eventId")
     List<Constraint> findConstraintsByEventId(@Param("eventId") Long eventId);
-
-    
 }

@@ -6,29 +6,43 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
-
 public class SharedStringList {
 
-    private final Set<String> stringSet; // Cambiato da List a Set per evitare duplicati
+    // Using a Set instead of a List to automatically avoid duplicate entries
+    private final Set<String> stringSet;
+    // Lock to ensure thread-safe access to the stringSet
     private final ReentrantLock lock;
 
+    /**
+     * Constructor for SharedStringList.
+     * Initializes the HashSet and the ReentrantLock.
+     */
     public SharedStringList() {
         this.stringSet = new HashSet<>();
-        //aggiungi i nodi all'hashset
-      
-        
+        // Optionally, pre-populate the set with initial nodes if needed
         this.lock = new ReentrantLock();
     }
 
+    /**
+     * Adds a string value to the set in a thread-safe manner.
+     * 
+     * @param value the string to be added.
+     */
     public void addString(String value) {
         lock.lock();
         try {
-            stringSet.add(value); // HashSet gestisce automaticamente i duplicati
+            // The HashSet automatically ignores duplicates
+            stringSet.add(value);
         } finally {
             lock.unlock();
         }
     }
 
+    /**
+     * Removes a string value from the set in a thread-safe manner.
+     * 
+     * @param value the string to be removed.
+     */
     public void removeString(String value) {
         lock.lock();
         try {
@@ -38,10 +52,16 @@ public class SharedStringList {
         }
     }
 
+    /**
+     * Returns a copy of the current set of strings.
+     * The returned list is a snapshot, ensuring external modifications do not affect the original set.
+     * 
+     * @return a List containing the current strings.
+     */
     public List<String> getStrings() {
         lock.lock();
         try {
-            return new ArrayList<>(stringSet); // Ritorna una copia per garantire immutabilità
+            return new ArrayList<>(stringSet);
         } finally {
             lock.unlock();
         }

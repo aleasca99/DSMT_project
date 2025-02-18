@@ -7,9 +7,9 @@ import jakarta.persistence.*;
 public class User {
 
     @Id
-    private String username; // Chiave primaria
+    private String username; 
 
-    private String password; // Password salvata con hash
+    private String password; 
 
     public User() {}
 
@@ -18,6 +18,7 @@ public class User {
         this.password = password;
     }
 
+    // Getter and Setter methods
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 

@@ -11,36 +11,44 @@ import java.util.Map;
 @Table(name = "constraints")
 public class Constraint {
 
+    // Unique identifier for the constraint
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // The event associated with the constraint
     @ManyToOne
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
+    // The username of the person who created the constraint
     @Column(nullable = false, length = 8)
     private String username;
 
+    // The Erlang node assigned to this constraint
     @Column(nullable = false, length = 255)
     private String assignedErlangNode;
 
+    // JSON string to store the list of constraints
     @Column(nullable = false, columnDefinition = "json")
-    private String constraintsList; // JSON string to store the list of constraints
+    private String constraintsList;
 
+    // ObjectMapper instance for JSON serialization/deserialization
     @Transient
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
+    // Default constructor
     public Constraint() {}
 
+    // Constructor to initialize all fields
     public Constraint(Event event, String username, String assignedErlangNode, List<Map<String, String>> constraintsList) throws JsonProcessingException {
         this.event = event;
         this.username = username;
         this.assignedErlangNode = assignedErlangNode;
-        this.constraintsList = serializeConstraints(constraintsList); // Serializza i vincoli
+        this.constraintsList = serializeConstraints(constraintsList); // Serialize the constraints
     }
 
-    // Getter e Setter
+    // Getter and Setter methods
     public Long getId() {
         return id;
     }
@@ -77,28 +85,13 @@ public class Constraint {
         return constraintsList;
     }
 
-    public void setConstraintsList(String constraintsList) {
-        this.constraintsList = constraintsList;
+    // Method to serialize the list of constraints to a JSON string
+    private String serializeConstraints(List<Map<String, String>> constraintsList) throws JsonProcessingException {
+        return objectMapper.writeValueAsString(constraintsList);
     }
 
-    // **Helper per la gestione dei vincoli come oggetti Java**
-    public List<Map<String, String>> getConstraintsAsList() throws JsonProcessingException {
-        return deserializeConstraints(this.constraintsList);
+    // Method to deserialize the JSON string to a list of constraints
+    public static List<Map<String, String>> deserializeConstraints(String constraintsList) throws JsonProcessingException {
+        return objectMapper.readValue(constraintsList, List.class);
     }
-
-    public void setConstraintsAsList(List<Map<String, String>> constraintsList) throws JsonProcessingException {
-        this.constraintsList = serializeConstraints(constraintsList);
-    }
-
-    // Helper per serializzare la lista di vincoli in JSON
-    private static String serializeConstraints(List<Map<String, String>> constraints) throws JsonProcessingException {
-        return objectMapper.writeValueAsString(constraints);
-    }
-
-    // Helper per deserializzare il JSON in una lista di vincoli
-    private static List<Map<String, String>> deserializeConstraints(String json) throws JsonProcessingException {
-        return objectMapper.readValue(json, List.class);
-    }
-
-    
 }

@@ -11,7 +11,7 @@ import java.util.List; // Add this import
 public interface EventRepository extends JpaRepository<Event, Long> {
     
     /**
-     * Recupera tutti gli eventi collegati a un determinato utente.
+     * Retrieves all events with a specific Erlang node IP address and a null final result.
      */
     @Query(value = "SELECT * FROM event WHERE erlang_node_ip = :erlangNodeIp AND final_result IS NULL", nativeQuery = true)
     List<Event> findByErlangNodeIpAndFinalResultIsNull(@Param("erlangNodeIp") String erlangNodeIp);
