@@ -32,8 +32,7 @@
     String error = (String) sessionObj.getAttribute("error");
 
     if (error != null && !error.isEmpty()) {
-        // Rimuove l'eventId dalla sessione dopo averlo recuperato per evitare ripetizioni
-        sessionObj.removeAttribute("eventId");
+        sessionObj.removeAttribute("error");
 %>
 <script>
     alert("<%= error %>");
