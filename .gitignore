@@ -1,8 +1,10 @@
-backend/target/classes/application.properties
+Implementation/Backend/JavaBackend/target/classes/application.properties
 #remove all .class files
-backend/target/classes/**/*.class
-backend/target/classes/com/whenly/*/*.class
-backend/target/classes/com/whenly/repository/ConstraintRepository.class
-backend/target/classes/com/whenly/service/ConstraintService.class
-backend/target/classes/com/whenly/service/ErlangBackendAPI.class
-backend/target/classes/com/whenly/service/EventService.class
+Implementation/Backend/JavaBackend/target/classes/**/*.class
+Implementation/Backend/JavaBackend/target/classes/com/whenly/*/*.class
+Implementation/Backend/JavaBackend/target/classes/com/whenly/repository/ConstraintRepository.class
+Implementation/Backend/JavaBackend/target/classes/com/whenly/service/ConstraintService.class
+Implementation/Backend/JavaBackend/target/classes/com/whenly/service/ErlangBackendAPI.class
+Implementation/Backend/JavaBackend/target/classes/com/whenly/service/EventService.class
+
+.idea
