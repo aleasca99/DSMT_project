@@ -48,7 +48,7 @@ Whenly is composed of several key components:
 ## Project Structure
 
 ```
-root/
+/
 ├── Documentation/           # Contains detailed project documentation and architectural diagrams
 ├── Slides/                  # Presentation slides used for project presentations
 └── Implementation/
