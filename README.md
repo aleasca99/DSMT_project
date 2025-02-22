@@ -52,7 +52,7 @@ Whenly is composed of several key components:
 ├── Documentation/           # Contains detailed project documentation and architectural diagrams
 ├── Slides/                  # Presentation slides used for project presentations
 └── Implementation/
-    ├── WebApp/              # Implementation of the web application frontend (JSP)
+    ├── Webapp/              # Implementation of the web application frontend (JSP)
     ├── Backend/
     │   ├── JavaBackend/     # Spring Boot application and related services
     │   └── erlang_backend/  # Erlang backend application for communication and monitoring
